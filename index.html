@@ -48,7 +48,7 @@
       cursor: pointer;
       display: inline-block;
       outline: none;
-      color: #f4f0e3;
+      color: #a8a8a8;
       min-width: 80px;
       max-width: 80vw;
       white-space: nowrap;
@@ -454,7 +454,7 @@
           <option value="5.0">5.0x</option>
         </select>
         <span class="ctrl-label">跳过片尾</span>
-        <input id="skip-end" class="skip-input" type="number" min="0" step="1" value="3" title="播放到片尾前几秒自动停止" />
+        <input id="skip-end" class="skip-input" type="number" min="0" step="1" value="3" title="播放到片尾前几秒自动循环" />
         <span class="ctrl-label">秒</span>
       </div>
       <div class="group">
@@ -820,11 +820,11 @@
     video.addEventListener('timeupdate', () => {
       progressBar.value = video.currentTime;
       currentEl.textContent = formatTime(video.currentTime);
-      // 跳过片尾：播放到片尾前 N 秒自动停止
+      // 跳过片尾：播放到片尾前 N 秒自动循环播放（无任何提示）
       if (skipEnd > 0 && video.duration && isFinite(video.duration) &&
           video.currentTime >= video.duration - skipEnd - 0.25) {
-        video.pause();
-        video.currentTime = video.duration;
+        video.currentTime = 0;
+        if (!video.paused) video.play().catch(() => {});
       }
     });
     video.addEventListener('play', updatePlayIcon);
