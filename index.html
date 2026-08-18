@@ -22,12 +22,12 @@
       z-index: 0;
     }
 
-    /* 顶部常驻信息层 */
+    /* 顶部常驻信息层（整体下移两个文字高度） */
     #top-bar {
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 20;
-      padding: 28px 20px 12px;
+      padding: 80px 20px 12px;
       text-align: center;
       color: #fff;
       pointer-events: none;
@@ -42,14 +42,14 @@
       font-variant-numeric: tabular-nums;
     }
     #subtitle {
-      margin-top: 2px;
+      margin-top: 1px;
       font-size: 18px;
       font-weight: 400;
       pointer-events: auto;
       cursor: pointer;
       display: inline-block;
       outline: none;
-      color: rgba(255,255,255,0.95);
+      color: #9a9a9a;
       min-width: 80px;
       max-width: 80vw;
       white-space: nowrap;
@@ -62,7 +62,7 @@
       border-bottom-color: rgba(255,255,255,0.45);
     }
 
-    /* 中间平板电脑 */
+    /* 中间平板电脑（内阴影边框） */
     #tablet {
       position: fixed;
       z-index: 10;
@@ -71,7 +71,8 @@
       width: min(74vw, 840px);
       aspect-ratio: 16 / 10.2;
       background: #000;
-      border-radius: 18px;
+      border-radius: 14px;
+      padding: 11px;
       box-shadow:
         0 18px 50px rgba(0,0,0,0.65),
         inset 0 0 0 10px #1a1a1a,
@@ -87,6 +88,7 @@
       object-fit: contain;
       background: #000;
       cursor: pointer;
+      border: 3px solid #000;
       transform-origin: center;
       transition: transform 0.1s linear;
     }
@@ -94,26 +96,14 @@
       opacity: 0;
     }
 
-    /* 平板下方的缩放触发热区（常驻淡提示） */
-    #zoom-trigger {
+    /* 平板下方：横向粗激活区（点击任意处出现缩放条，无小图标） */
+    #zoom-zone {
       position: fixed;
-      z-index: 22;
-      top: 73.5%; left: 50%;
-      transform: translateX(-50%);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.42);
-      color: rgba(255,255,255,0.85);
-      font-size: 13px;
+      z-index: 15;
+      top: 73.5%; left: 0; right: 0;
+      height: 60px;
       cursor: pointer;
-      backdrop-filter: blur(3px);
-      transition: opacity 0.3s;
     }
-    #zoom-trigger svg { width: 16px; height: 16px; fill: currentColor; }
-    #zoom-trigger.hidden { opacity: 0; pointer-events: none; }
 
     /* 独立缩放面板 */
     #zoom-panel {
@@ -162,28 +152,7 @@
     #zoom-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: none; }
     .zoom-text { min-width: 42px; text-align: center; }
 
-    /* 屏幕底部的导航触发热区（常驻淡提示） */
-    #controls-trigger {
-      position: fixed;
-      z-index: 22;
-      bottom: 14px; left: 50%;
-      transform: translateX(-50%);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 16px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.42);
-      color: rgba(255,255,255,0.85);
-      font-size: 13px;
-      cursor: pointer;
-      backdrop-filter: blur(3px);
-      transition: opacity 0.3s;
-    }
-    #controls-trigger svg { width: 16px; height: 16px; fill: currentColor; }
-    #controls-trigger.hidden { opacity: 0; pointer-events: none; }
-
-    /* 底部控制栏（默认隐藏，点击导航热区才显示） */
+    /* 底部控制栏（默认隐藏，点击画面才显示） */
     #controls {
       position: fixed;
       bottom: 0; left: 0; right: 0;
@@ -302,10 +271,10 @@
 
     /* 响应式 */
     @media (max-width: 640px) {
-      #top-bar { padding-top: 20px; }
+      #top-bar { padding-top: 64px; }
       #clock, #subtitle { font-size: 16px; }
       #tablet { width: 92vw; top: 42%; }
-      #zoom-trigger { top: 72%; }
+      #zoom-zone { top: 72%; }
       #zoom-panel { top: 69%; width: 86vw; }
       button, .file-btn { padding: 8px 11px; font-size: 13px; }
       #buttons-row { gap: 8px; }
@@ -328,23 +297,14 @@
     <video id="video" playsinline></video>
   </div>
 
-  <!-- 平板下方：缩放触发热区 -->
-  <div id="zoom-trigger" title="画面缩放">
-    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
-    画面缩放
-  </div>
+  <!-- 平板下方：横向粗激活区（点击任意处出现缩放条） -->
+  <div id="zoom-zone" title="轻触此处调整画面缩放"></div>
 
   <!-- 独立缩放面板 -->
   <div id="zoom-panel" class="hidden">
     <span class="zoom-text">画面缩放</span>
     <input id="zoom-slider" type="range" min="0.5" max="2.0" value="1" step="0.05" />
     <span class="zoom-text" id="zoom-value">100%</span>
-  </div>
-
-  <!-- 底部导航触发热区 -->
-  <div id="controls-trigger" title="显示控制栏">
-    <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-    控制栏
   </div>
 
   <!-- 底部控制栏 -->
@@ -376,7 +336,7 @@
           更换背景
         </label>
         <input id="bg-input" type="file" accept="image/*" />
-        <button id="fullscreen-btn" title="全屏">
+        <button id="fullscreen-btn" title="全屏播放">
           <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
         </button>
       </div>
@@ -396,10 +356,9 @@
     const durationEl = document.getElementById('duration');
     const volumeEl = document.getElementById('volume');
     const controls = document.getElementById('controls');
-    const controlsTrigger = document.getElementById('controls-trigger');
     const clockEl = document.getElementById('clock');
     const subtitleEl = document.getElementById('subtitle');
-    const zoomTrigger = document.getElementById('zoom-trigger');
+    const zoomZone = document.getElementById('zoom-zone');
     const zoomPanel = document.getElementById('zoom-panel');
     const zoomSlider = document.getElementById('zoom-slider');
     const zoomValue = document.getElementById('zoom-value');
@@ -445,66 +404,62 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
-    // ----- 自动全屏 -----
-    function enterFullscreen() {
+    // ----- 全屏（横屏） -----
+    function goFullscreen() {
       fsHint.classList.add('hidden');
       const el = document.documentElement;
-      const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-      if (fn && !document.fullscreenElement) {
-        fn.call(el).catch(() => {});
-      }
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (!req || document.fullscreenElement) return;
+      const p = req.call(el);
+      if (p && p.then) p.catch(() => {});
     }
-    fsHint.addEventListener('click', enterFullscreen);
-    // 首次任意交互也尝试进入全屏（满足浏览器需用户手势的要求）
+    function exitFullscreen() {
+      const ex = document.exitFullscreen || document.webkitExitFullscreen;
+      if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
+    }
+    fsHint.addEventListener('click', goFullscreen);
     ['click', 'touchstart', 'keydown'].forEach(ev => {
-      document.addEventListener(ev, enterFullscreen, { once: true, passive: true });
+      document.addEventListener(ev, goFullscreen, { once: true, passive: true });
     });
     fullscreenBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) {
-        (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement).catch(() => {});
-      } else {
-        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-      }
+      if (!document.fullscreenElement) goFullscreen();
+      else exitFullscreen();
     });
 
-    // ----- 底部导航栏：点击底部热区才显示，5秒无操作隐藏 -----
+    // ----- 底部导航栏：点击画面出现/隐藏，5秒无操作隐藏 -----
     let controlsHideTimer = null;
     function showControls() {
       controls.classList.remove('hidden');
-      controlsTrigger.classList.add('hidden');
       clearTimeout(controlsHideTimer);
       controlsHideTimer = setTimeout(() => {
         controls.classList.add('hidden');
-        controlsTrigger.classList.remove('hidden');
       }, 5000);
     }
-    controlsTrigger.addEventListener('click', (e) => {
+    video.addEventListener('click', (e) => {
       e.stopPropagation();
-      showControls();
+      if (controls.classList.contains('hidden')) {
+        showControls();
+      } else {
+        clearTimeout(controlsHideTimer);
+        controls.classList.add('hidden');
+      }
     });
     controls.addEventListener('click', () => {
       if (!controls.classList.contains('hidden')) {
         clearTimeout(controlsHideTimer);
-        controlsHideTimer = setTimeout(() => {
-          controls.classList.add('hidden');
-          controlsTrigger.classList.remove('hidden');
-        }, 5000);
+        controlsHideTimer = setTimeout(() => controls.classList.add('hidden'), 5000);
       }
     }, true);
 
-    // ----- 缩放面板：点击平板下方热区才显示，3秒无操作隐藏 -----
+    // ----- 缩放面板：点击平板下方横向区域才显示，3秒无操作隐藏 -----
     let zoomHideTimer = null;
     function showZoomPanel() {
       zoomPanel.classList.remove('hidden');
-      zoomTrigger.classList.add('hidden');
       clearTimeout(zoomHideTimer);
-      zoomHideTimer = setTimeout(() => {
-        zoomPanel.classList.add('hidden');
-        zoomTrigger.classList.remove('hidden');
-      }, 3000);
+      zoomHideTimer = setTimeout(() => zoomPanel.classList.add('hidden'), 3000);
     }
-    zoomTrigger.addEventListener('click', (e) => {
+    zoomZone.addEventListener('click', (e) => {
       e.stopPropagation();
       showZoomPanel();
     });
@@ -534,7 +489,6 @@
       playBtn.innerHTML = video.paused ? `<svg viewBox="0 0 24 24">${iconPlay}</svg>` : `<svg viewBox="0 0 24 24">${iconPause}</svg>`;
     }
     playBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
-    video.addEventListener('click', togglePlay);
 
     stopBtn.addEventListener('click', (e) => {
       e.stopPropagation();
