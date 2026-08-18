@@ -31,11 +31,10 @@
       text-align: center;
       color: #fff;
       pointer-events: none;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
     #clock {
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 21.6px;
+      font-weight: 700;
       line-height: 1.4;
       pointer-events: auto;
       color: #ffffff;
@@ -43,23 +42,18 @@
     }
     #subtitle {
       margin-top: 1px;
-      font-size: 18px;
+      font-size: 14.4px;
       font-weight: 400;
       pointer-events: auto;
       cursor: pointer;
       display: inline-block;
       outline: none;
-      color: #9a9a9a;
+      color: #f4f0e3;
       min-width: 80px;
       max-width: 80vw;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      border-bottom: 1px dashed transparent;
-      transition: border-color 0.2s;
-    }
-    #subtitle:hover, #subtitle.editing {
-      border-bottom-color: rgba(255,255,255,0.45);
     }
 
     /* 中间平板电脑（内阴影边框） */
@@ -83,12 +77,23 @@
       justify-content: center;
     }
 
+    /* 视频屏幕：固定黑色描边，缩放只作用于内部 video，边框不被平板遮住 */
+    #screen {
+      width: 100%; height: 100%;
+      border: 4px solid #000;
+      border-radius: 4px;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     video {
       width: 100%; height: 100%;
       object-fit: contain;
       background: #000;
       cursor: pointer;
-      border: 3px solid #000;
       transform-origin: center;
       transition: transform 0.1s linear;
     }
@@ -152,7 +157,67 @@
     #zoom-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: none; }
     .zoom-text { min-width: 42px; text-align: center; }
 
-    /* 底部控制栏（默认隐藏，点击画面才显示） */
+    /* 底部左下角：平板升降控制触发区 */
+    #position-zone {
+      position: fixed;
+      z-index: 15;
+      left: 0; bottom: 0;
+      width: 60px; height: 140px;
+      cursor: pointer;
+    }
+
+    /* 平板升降面板（竖向滑条） */
+    #position-panel {
+      position: fixed;
+      z-index: 26;
+      left: 14px; bottom: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 12px;
+      backdrop-filter: blur(6px);
+      opacity: 1;
+      transition: opacity 0.3s;
+      user-select: none;
+    }
+    #position-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #position-slider {
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      width: 8px; height: 140px;
+      cursor: pointer;
+      accent-color: #fff;
+    }
+    #position-reset {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #fff;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #position-reset:active { background: rgba(255,255,255,0.24); }
+
+    /* 底部中间：呼出导航栏触发区 */
+    #controls-zone {
+      position: fixed;
+      z-index: 15;
+      left: 30%; bottom: 0;
+      width: 40%; height: 60px;
+      cursor: pointer;
+    }
+
+    /* 底部控制栏（默认隐藏，点击画面/底部中间才显示） */
     #controls {
       position: fixed;
       bottom: 0; left: 0; right: 0;
@@ -249,6 +314,30 @@
       accent-color: #fff;
     }
 
+    /* 倍速下拉、跳过片尾输入框 复用按钮外观 */
+    select.speed-select, input.skip-input {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #fff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      white-space: nowrap;
+      min-width: max-content;
+    }
+    input.skip-input {
+      width: 56px;
+      text-align: center;
+      cursor: text;
+      -moz-appearance: textfield;
+    }
+    input.skip-input::-webkit-outer-spin-button,
+    input.skip-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    select.speed-select option { color: #000; }
+    .ctrl-label { font-size: 12px; color: rgba(255,255,255,0.85); white-space: nowrap; }
+
     /* 隐藏原生文件输入 */
     #file-input, #bg-input { display: none; }
 
@@ -272,13 +361,23 @@
     /* 响应式 */
     @media (max-width: 640px) {
       #top-bar { padding-top: 64px; }
-      #clock, #subtitle { font-size: 16px; }
+      #clock { font-size: 19.2px; }
+      #subtitle { font-size: 12.8px; }
       #tablet { width: 92vw; top: 42%; }
       #zoom-zone { top: 72%; }
       #zoom-panel { top: 69%; width: 86vw; }
+      #position-zone { width: 50px; height: 120px; }
+      #position-panel { left: 10px; bottom: 100px; padding: 12px 8px; }
+      #position-slider { height: 120px; }
+      #controls-zone { height: 50px; }
       button, .file-btn { padding: 8px 11px; font-size: 13px; }
       #buttons-row { gap: 8px; }
       .group { gap: 6px; }
+    }
+
+    /* 横屏：时间与文字顶到顶部 */
+    @media (orientation: landscape) {
+      #top-bar { padding-top: 16px; }
     }
   </style>
 </head>
@@ -294,7 +393,9 @@
   </div>
 
   <div id="tablet">
-    <video id="video" playsinline></video>
+    <div id="screen">
+      <video id="video" playsinline></video>
+    </div>
   </div>
 
   <!-- 平板下方：横向粗激活区（点击任意处出现缩放条） -->
@@ -306,6 +407,20 @@
     <input id="zoom-slider" type="range" min="0.5" max="2.0" value="1" step="0.05" />
     <span class="zoom-text" id="zoom-value">100%</span>
   </div>
+
+  <!-- 底部左下角：平板升降控制触发区 -->
+  <div id="position-zone" title="轻触此处调整平板位置"></div>
+
+  <!-- 平板升降面板（竖向滑条） -->
+  <div id="position-panel" class="hidden">
+    <span>下</span>
+    <input id="position-slider" type="range" min="-50" max="50" value="0" orient="vertical" />
+    <span>上</span>
+    <button id="position-reset">恢复默认</button>
+  </div>
+
+  <!-- 底部中间：呼出导航栏触发区 -->
+  <div id="controls-zone" title="轻触此处呼出控制栏"></div>
 
   <!-- 底部控制栏 -->
   <div id="controls" class="hidden">
@@ -322,8 +437,25 @@
         <button id="stop-btn" title="停止">
           <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
         </button>
+        <button id="rewind30-btn" title="快退30秒">«30</button>
+        <button id="forward30-btn" title="快进30秒">30»</button>
         <input id="volume" type="range" min="0" max="1" step="0.05" value="1" title="音量" />
         <button id="normalize-btn" title="均衡不同视频音量">均衡:关</button>
+      </div>
+      <div class="group">
+        <span class="ctrl-label">倍速</span>
+        <select id="speed" class="speed-select" title="播放倍速">
+          <option value="0.1">0.1x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1.0" selected>1.0x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2.0">2.0x</option>
+          <option value="3.0">3.0x</option>
+          <option value="5.0">5.0x</option>
+        </select>
+        <span class="ctrl-label">跳过片尾</span>
+        <input id="skip-end" class="skip-input" type="number" min="0" step="1" value="3" title="播放到片尾前几秒自动停止" />
+        <span class="ctrl-label">秒</span>
       </div>
       <div class="group">
         <label class="file-btn" for="file-input" title="选择本地视频">
@@ -336,21 +468,26 @@
           更换背景
         </label>
         <input id="bg-input" type="file" accept="image/*" />
-        <button id="fullscreen-btn" title="全屏播放">
-          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-        </button>
+        <button id="fullscreen-portrait-btn" title="竖屏全屏播放">竖屏</button>
+        <button id="fullscreen-landscape-btn" title="横屏全屏播放">横屏</button>
       </div>
     </div>
   </div>
 
   <script>
     const video = document.getElementById('video');
+    const tablet = document.getElementById('tablet');
     const playBtn = document.getElementById('play-btn');
     const stopBtn = document.getElementById('stop-btn');
     const fileInput = document.getElementById('file-input');
     const bgInput = document.getElementById('bg-input');
     const backgroundEl = document.getElementById('background');
-    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const fullscreenPortraitBtn = document.getElementById('fullscreen-portrait-btn');
+    const fullscreenLandscapeBtn = document.getElementById('fullscreen-landscape-btn');
+    const speedSelect = document.getElementById('speed');
+    const skipEndInput = document.getElementById('skip-end');
+    const rewind30Btn = document.getElementById('rewind30-btn');
+    const forward30Btn = document.getElementById('forward30-btn');
     const progressBar = document.getElementById('progress-bar');
     const currentEl = document.getElementById('current');
     const durationEl = document.getElementById('duration');
@@ -362,6 +499,11 @@
     const zoomPanel = document.getElementById('zoom-panel');
     const zoomSlider = document.getElementById('zoom-slider');
     const zoomValue = document.getElementById('zoom-value');
+    const positionZone = document.getElementById('position-zone');
+    const positionPanel = document.getElementById('position-panel');
+    const positionSlider = document.getElementById('position-slider');
+    const positionReset = document.getElementById('position-reset');
+    const controlsZone = document.getElementById('controls-zone');
     const normalizeBtn = document.getElementById('normalize-btn');
     const fsHint = document.getElementById('fs-hint');
 
@@ -404,26 +546,40 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
-    // ----- 全屏（横屏） -----
-    function goFullscreen() {
+    // ----- 全屏：竖屏 / 横屏 独立 -----
+    function goFullscreen(lockLandscape) {
       fsHint.classList.add('hidden');
       const el = document.documentElement;
       const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
       if (!req || document.fullscreenElement) return;
       const p = req.call(el);
-      if (p && p.then) p.catch(() => {});
+      if (p && p.then) {
+        p.then(() => {
+          if (lockLandscape && screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+          }
+        }).catch(() => {});
+      }
     }
     function exitFullscreen() {
+      if (screen.orientation && screen.orientation.unlock) {
+        try { screen.orientation.unlock(); } catch (e) {}
+      }
       const ex = document.exitFullscreen || document.webkitExitFullscreen;
       if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
     }
-    fsHint.addEventListener('click', goFullscreen);
+    fsHint.addEventListener('click', () => goFullscreen(false));
     ['click', 'touchstart', 'keydown'].forEach(ev => {
-      document.addEventListener(ev, goFullscreen, { once: true, passive: true });
+      document.addEventListener(ev, () => goFullscreen(false), { once: true, passive: true });
     });
-    fullscreenBtn.addEventListener('click', (e) => {
+    fullscreenPortraitBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) goFullscreen();
+      if (!document.fullscreenElement) goFullscreen(false);
+      else exitFullscreen();
+    });
+    fullscreenLandscapeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!document.fullscreenElement) goFullscreen(true);
       else exitFullscreen();
     });
 
@@ -478,6 +634,50 @@
       zoomSlider.value = savedZoom;
       applyZoom(savedZoom);
     }
+
+    // ----- 平板升降面板：点击左下角触发区显示，3秒无操作隐藏 -----
+    const DEFAULT_TABLET_TOP = 44;
+    let positionHideTimer = null;
+    function showPositionPanel() {
+      positionPanel.classList.remove('hidden');
+      clearTimeout(positionHideTimer);
+      positionHideTimer = setTimeout(() => positionPanel.classList.add('hidden'), 3000);
+    }
+    function applyTabletTop(offset) {
+      let finalTop = DEFAULT_TABLET_TOP + offset;
+      finalTop = Math.max(0, Math.min(100, finalTop));
+      tablet.style.top = finalTop + '%';
+      localStorage.setItem('car_video_tablet_top', finalTop);
+    }
+    positionZone.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showPositionPanel();
+    });
+    positionPanel.addEventListener('click', (e) => e.stopPropagation());
+    positionSlider.addEventListener('input', () => {
+      applyTabletTop(parseFloat(positionSlider.value));
+      showPositionPanel();
+    });
+    positionReset.addEventListener('click', (e) => {
+      e.stopPropagation();
+      positionSlider.value = 0;
+      applyTabletTop(0);
+      showPositionPanel();
+    });
+    const savedTop = parseFloat(localStorage.getItem('car_video_tablet_top'));
+    if (!isNaN(savedTop)) {
+      let offset = savedTop - DEFAULT_TABLET_TOP;
+      offset = Math.max(-50, Math.min(50, offset));
+      positionSlider.value = offset;
+      applyTabletTop(offset);
+    }
+
+    // 底部中间区域点击呼出导航栏
+    controlsZone.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (controls.classList.contains('hidden')) showControls();
+      else { clearTimeout(controlsHideTimer); controls.classList.add('hidden'); }
+    });
 
     // 视频控制
     function togglePlay() {
@@ -572,6 +772,40 @@
     });
     updateNormalizeBtn();
 
+    // ----- 倍速播放 -----
+    function applySpeed() {
+      video.playbackRate = parseFloat(speedSelect.value) || 1;
+    }
+    speedSelect.addEventListener('change', applySpeed);
+    applySpeed();
+
+    // ----- 跳过片尾（默认3秒） -----
+    let skipEnd = parseFloat(skipEndInput.value);
+    if (isNaN(skipEnd) || skipEnd < 0) skipEnd = 3;
+    const savedSkip = localStorage.getItem('car_video_skipend');
+    if (savedSkip !== null) {
+      const v = parseFloat(savedSkip);
+      if (!isNaN(v) && v >= 0) { skipEnd = v; skipEndInput.value = v; }
+    }
+    skipEndInput.addEventListener('change', () => {
+      let v = parseFloat(skipEndInput.value);
+      if (isNaN(v) || v < 0) v = 0;
+      skipEnd = v;
+      localStorage.setItem('car_video_skipend', v);
+    });
+
+    // ----- 快退30秒 / 快进30秒 -----
+    rewind30Btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!video.src) return;
+      video.currentTime = Math.max(0, video.currentTime - 30);
+    });
+    forward30Btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!video.src) return;
+      video.currentTime = Math.min(video.duration || 0, video.currentTime + 30);
+    });
+
     // 进度更新
     function formatTime(s) {
       if (!isFinite(s)) return '0:00';
@@ -586,6 +820,12 @@
     video.addEventListener('timeupdate', () => {
       progressBar.value = video.currentTime;
       currentEl.textContent = formatTime(video.currentTime);
+      // 跳过片尾：播放到片尾前 N 秒自动停止
+      if (skipEnd > 0 && video.duration && isFinite(video.duration) &&
+          video.currentTime >= video.duration - skipEnd - 0.25) {
+        video.pause();
+        video.currentTime = video.duration;
+      }
     });
     video.addEventListener('play', updatePlayIcon);
     video.addEventListener('pause', updatePlayIcon);
@@ -610,7 +850,7 @@
       } else if (e.code === 'ArrowLeft') {
         video.currentTime = Math.max(0, video.currentTime - 5);
       } else if (e.code === 'KeyF') {
-        fullscreenBtn.click();
+        fullscreenPortraitBtn.click();
       }
     });
 
