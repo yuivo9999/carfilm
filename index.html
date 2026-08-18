@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>车载本地视频播放器</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,6 +11,7 @@
       overflow: hidden;
       background: #000;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* 背景图 */
@@ -26,51 +27,46 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 20;
-      padding: 36px 20px 18px;
+      padding: 28px 20px 12px;
       text-align: center;
       color: #fff;
       pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
     #clock {
-      font-size: 68px;
+      font-size: 18px;
       font-weight: 600;
-      letter-spacing: 0;
-      line-height: 1;
+      line-height: 1.4;
       pointer-events: auto;
       color: #ffffff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.45);
+      font-variant-numeric: tabular-nums;
     }
     #subtitle {
-      margin-top: 8px;
-      font-size: 16px;
+      margin-top: 2px;
+      font-size: 18px;
       font-weight: 400;
       pointer-events: auto;
       cursor: pointer;
       display: inline-block;
-      padding: 6px 18px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.72);
-      color: rgba(255,255,255,0.82);
-      transition: background 0.2s, color 0.2s;
-      min-width: 120px;
-      max-width: 80vw;
       outline: none;
+      color: rgba(255,255,255,0.95);
+      min-width: 80px;
+      max-width: 80vw;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      border: 1px solid transparent;
+      border-bottom: 1px dashed transparent;
+      transition: border-color 0.2s;
     }
     #subtitle:hover, #subtitle.editing {
-      background: rgba(0,0,0,0.88);
-      color: #fff;
-      border-color: rgba(255,255,255,0.25);
+      border-bottom-color: rgba(255,255,255,0.45);
     }
 
     /* 中间平板电脑 */
     #tablet {
       position: fixed;
       z-index: 10;
-      top: 46%; left: 50%;
+      top: 44%; left: 50%;
       transform: translate(-50%, -50%);
       width: min(74vw, 840px);
       aspect-ratio: 16 / 10.2;
@@ -91,19 +87,110 @@
       object-fit: contain;
       background: #000;
       cursor: pointer;
+      transform-origin: center;
+      transition: transform 0.1s linear;
     }
     video:not([src]) {
       opacity: 0;
     }
 
-    /* 底部控制栏 */
+    /* 平板下方的缩放触发热区（常驻淡提示） */
+    #zoom-trigger {
+      position: fixed;
+      z-index: 22;
+      top: 73.5%; left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.42);
+      color: rgba(255,255,255,0.85);
+      font-size: 13px;
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      transition: opacity 0.3s;
+    }
+    #zoom-trigger svg { width: 16px; height: 16px; fill: currentColor; }
+    #zoom-trigger.hidden { opacity: 0; pointer-events: none; }
+
+    /* 独立缩放面板 */
+    #zoom-panel {
+      position: fixed;
+      z-index: 26;
+      top: 71%; left: 50%;
+      transform: translateX(-50%);
+      width: min(70vw, 720px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 13px;
+      backdrop-filter: blur(6px);
+      opacity: 1;
+      transition: opacity 0.3s;
+      user-select: none;
+    }
+    #zoom-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #zoom-slider {
+      flex: 1;
+      height: 5px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.22);
+      border-radius: 3px;
+      cursor: pointer;
+      outline: none;
+      accent-color: #fff;
+    }
+    #zoom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 6px rgba(0,0,0,0.5);
+      margin-top: -4.5px;
+    }
+    #zoom-slider::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; }
+    #zoom-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: none; }
+    .zoom-text { min-width: 42px; text-align: center; }
+
+    /* 屏幕底部的导航触发热区（常驻淡提示） */
+    #controls-trigger {
+      position: fixed;
+      z-index: 22;
+      bottom: 14px; left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.42);
+      color: rgba(255,255,255,0.85);
+      font-size: 13px;
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      transition: opacity 0.3s;
+    }
+    #controls-trigger svg { width: 16px; height: 16px; fill: currentColor; }
+    #controls-trigger.hidden { opacity: 0; pointer-events: none; }
+
+    /* 底部控制栏（默认隐藏，点击导航热区才显示） */
     #controls {
       position: fixed;
       bottom: 0; left: 0; right: 0;
       z-index: 30;
-      padding: 14px 24px 22px;
+      padding: 14px 20px calc(16px + env(safe-area-inset-bottom, 0px));
       color: #fff;
-      background: linear-gradient(to top, rgba(0,0,0,0.72), transparent);
+      background: linear-gradient(to top, rgba(0,0,0,0.78), transparent);
       opacity: 1;
       transform: translateY(0);
       transition: opacity 0.35s ease, transform 0.35s ease;
@@ -122,7 +209,7 @@
     #progress-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       font-size: 13px;
       color: rgba(255,255,255,0.9);
     }
@@ -135,6 +222,7 @@
       border-radius: 3px;
       cursor: pointer;
       outline: none;
+      accent-color: #fff;
     }
     #progress-bar::-webkit-slider-thumb {
       -webkit-appearance: none;
@@ -144,22 +232,17 @@
       box-shadow: 0 0 6px rgba(0,0,0,0.5);
       margin-top: -4.5px;
     }
-    #progress-bar::-webkit-slider-runnable-track {
-      height: 5px; border-radius: 3px;
-    }
-    #progress-bar::-moz-range-thumb {
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: #fff;
-      border: none;
-    }
+    #progress-bar::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; }
+    #progress-bar::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: none; }
+    .time-text { min-width: 42px; text-align: center; }
 
     /* 按钮行 */
     #buttons-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     .group {
       display: flex;
@@ -178,32 +261,62 @@
       display: inline-flex; align-items: center; justify-content: center;
       gap: 6px;
       backdrop-filter: blur(4px);
+      white-space: nowrap;
+      min-width: max-content;
     }
     button:hover, .file-btn:hover { background: rgba(255,255,255,0.24); }
     button:active, .file-btn:active { transform: scale(0.96); }
     button svg, .file-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    #normalize-btn.active {
+      background: rgba(76, 175, 80, 0.35);
+      border-color: rgba(129, 199, 132, 0.6);
+      color: #e8f5e9;
+    }
 
     #volume {
       width: 90px;
       cursor: pointer;
       accent-color: #fff;
     }
-    .time-text { min-width: 42px; text-align: center; }
 
     /* 隐藏原生文件输入 */
-    #file-input { display: none; }
+    #file-input, #bg-input { display: none; }
+
+    /* 打开时的全屏引导浮层 */
+    #fs-hint {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      text-align: center;
+      backdrop-filter: blur(2px);
+    }
+    #fs-hint.hidden { display: none; }
 
     /* 响应式 */
     @media (max-width: 640px) {
-      #top-bar { padding-top: 22px; }
-      #clock { font-size: 44px; }
-      #subtitle { font-size: 14px; padding: 5px 14px; }
-      #tablet { width: 92vw; top: 44%; }
+      #top-bar { padding-top: 20px; }
+      #clock, #subtitle { font-size: 16px; }
+      #tablet { width: 92vw; top: 42%; }
+      #zoom-trigger { top: 72%; }
+      #zoom-panel { top: 69%; width: 86vw; }
       button, .file-btn { padding: 8px 11px; font-size: 13px; }
+      #buttons-row { gap: 8px; }
+      .group { gap: 6px; }
     }
   </style>
 </head>
 <body>
+  <!-- 打开时引导进入全屏 -->
+  <div id="fs-hint">点击任意位置进入全屏观看</div>
+
   <div id="background"></div>
 
   <div id="top-bar">
@@ -215,7 +328,27 @@
     <video id="video" playsinline></video>
   </div>
 
-  <div id="controls">
+  <!-- 平板下方：缩放触发热区 -->
+  <div id="zoom-trigger" title="画面缩放">
+    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+    画面缩放
+  </div>
+
+  <!-- 独立缩放面板 -->
+  <div id="zoom-panel" class="hidden">
+    <span class="zoom-text">画面缩放</span>
+    <input id="zoom-slider" type="range" min="0.5" max="2.0" value="1" step="0.05" />
+    <span class="zoom-text" id="zoom-value">100%</span>
+  </div>
+
+  <!-- 底部导航触发热区 -->
+  <div id="controls-trigger" title="显示控制栏">
+    <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    控制栏
+  </div>
+
+  <!-- 底部控制栏 -->
+  <div id="controls" class="hidden">
     <div id="progress-row">
       <span class="time-text" id="current">0:00</span>
       <input id="progress-bar" type="range" min="0" max="100" value="0" step="0.1" />
@@ -230,6 +363,7 @@
           <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
         </button>
         <input id="volume" type="range" min="0" max="1" step="0.05" value="1" title="音量" />
+        <button id="normalize-btn" title="均衡不同视频音量">均衡:关</button>
       </div>
       <div class="group">
         <label class="file-btn" for="file-input" title="选择本地视频">
@@ -262,11 +396,15 @@
     const durationEl = document.getElementById('duration');
     const volumeEl = document.getElementById('volume');
     const controls = document.getElementById('controls');
+    const controlsTrigger = document.getElementById('controls-trigger');
     const clockEl = document.getElementById('clock');
     const subtitleEl = document.getElementById('subtitle');
-
-    let hideTimer = null;
-    const HIDE_DELAY = 5000;
+    const zoomTrigger = document.getElementById('zoom-trigger');
+    const zoomPanel = document.getElementById('zoom-panel');
+    const zoomSlider = document.getElementById('zoom-slider');
+    const zoomValue = document.getElementById('zoom-value');
+    const normalizeBtn = document.getElementById('normalize-btn');
+    const fsHint = document.getElementById('fs-hint');
 
     // 图标
     const iconPlay = '<path d="M8 5v14l11-7z"/>';
@@ -282,14 +420,23 @@
     updateClock();
     setInterval(updateClock, 1000);
 
-    // 字幕编辑处理：回车保存、失焦保存
+    // 字幕编辑：点击全选、回车保存、失焦保存
     subtitleEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         subtitleEl.blur();
       }
     });
-    subtitleEl.addEventListener('focus', () => subtitleEl.classList.add('editing'));
+    subtitleEl.addEventListener('focus', () => {
+      subtitleEl.classList.add('editing');
+      setTimeout(() => {
+        const range = document.createRange();
+        range.selectNodeContents(subtitleEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }, 0);
+    });
     subtitleEl.addEventListener('blur', () => {
       subtitleEl.classList.remove('editing');
       if (!subtitleEl.textContent.trim()) subtitleEl.textContent = '点击编辑文字';
@@ -298,20 +445,84 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
-    // 自动隐藏控制栏
+    // ----- 自动全屏 -----
+    function enterFullscreen() {
+      fsHint.classList.add('hidden');
+      const el = document.documentElement;
+      const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (fn && !document.fullscreenElement) {
+        fn.call(el).catch(() => {});
+      }
+    }
+    fsHint.addEventListener('click', enterFullscreen);
+    // 首次任意交互也尝试进入全屏（满足浏览器需用户手势的要求）
+    ['click', 'touchstart', 'keydown'].forEach(ev => {
+      document.addEventListener(ev, enterFullscreen, { once: true, passive: true });
+    });
+    fullscreenBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!document.fullscreenElement) {
+        (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement).catch(() => {});
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      }
+    });
+
+    // ----- 底部导航栏：点击底部热区才显示，5秒无操作隐藏 -----
+    let controlsHideTimer = null;
     function showControls() {
       controls.classList.remove('hidden');
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => controls.classList.add('hidden'), HIDE_DELAY);
+      controlsTrigger.classList.add('hidden');
+      clearTimeout(controlsHideTimer);
+      controlsHideTimer = setTimeout(() => {
+        controls.classList.add('hidden');
+        controlsTrigger.classList.remove('hidden');
+      }, 5000);
     }
-    function resetHideTimer() {
+    controlsTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
       showControls();
-    }
-
-    ['mousemove', 'mousedown', 'touchstart', 'keydown', 'click'].forEach(evt => {
-      document.addEventListener(evt, resetHideTimer, { passive: true });
     });
-    showControls();
+    controls.addEventListener('click', () => {
+      if (!controls.classList.contains('hidden')) {
+        clearTimeout(controlsHideTimer);
+        controlsHideTimer = setTimeout(() => {
+          controls.classList.add('hidden');
+          controlsTrigger.classList.remove('hidden');
+        }, 5000);
+      }
+    }, true);
+
+    // ----- 缩放面板：点击平板下方热区才显示，3秒无操作隐藏 -----
+    let zoomHideTimer = null;
+    function showZoomPanel() {
+      zoomPanel.classList.remove('hidden');
+      zoomTrigger.classList.add('hidden');
+      clearTimeout(zoomHideTimer);
+      zoomHideTimer = setTimeout(() => {
+        zoomPanel.classList.add('hidden');
+        zoomTrigger.classList.remove('hidden');
+      }, 3000);
+    }
+    zoomTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showZoomPanel();
+    });
+    zoomPanel.addEventListener('click', (e) => e.stopPropagation());
+    function applyZoom(value) {
+      video.style.transform = `scale(${value})`;
+      zoomValue.textContent = Math.round(value * 100) + '%';
+      localStorage.setItem('car_video_zoom', value);
+    }
+    zoomSlider.addEventListener('input', () => {
+      applyZoom(parseFloat(zoomSlider.value));
+      showZoomPanel();
+    });
+    const savedZoom = parseFloat(localStorage.getItem('car_video_zoom'));
+    if (!isNaN(savedZoom) && savedZoom >= 0.5 && savedZoom <= 2.0) {
+      zoomSlider.value = savedZoom;
+      applyZoom(savedZoom);
+    }
 
     // 视频控制
     function togglePlay() {
@@ -319,15 +530,14 @@
       if (video.paused) video.play();
       else video.pause();
     }
-
     function updatePlayIcon() {
       playBtn.innerHTML = video.paused ? `<svg viewBox="0 0 24 24">${iconPlay}</svg>` : `<svg viewBox="0 0 24 24">${iconPause}</svg>`;
     }
-
-    playBtn.addEventListener('click', togglePlay);
+    playBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
     video.addEventListener('click', togglePlay);
 
-    stopBtn.addEventListener('click', () => {
+    stopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (video.src) URL.revokeObjectURL(video.src);
       video.pause();
       video.removeAttribute('src');
@@ -353,17 +563,60 @@
       };
       reader.readAsDataURL(file);
     });
-
-    // 加载已保存的自定义背景
     const savedBg = localStorage.getItem('car_video_bg');
     if (savedBg) backgroundEl.style.backgroundImage = `url("${savedBg}")`;
 
-    fullscreenBtn.addEventListener('click', () => {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-      else document.exitFullscreen().catch(() => {});
-    });
-
     volumeEl.addEventListener('input', () => { video.volume = volumeEl.value; });
+
+    // ----- 音量均衡（响度压缩） -----
+    let audioCtx = null;
+    let mediaSource = null;
+    let compressor = null;
+    let normalizerEnabled = localStorage.getItem('car_video_normalize') === '1';
+
+    function initAudioGraph() {
+      if (audioCtx) return;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      audioCtx = new AudioContext();
+      mediaSource = audioCtx.createMediaElementSource(video);
+      compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -24;
+      compressor.knee.value = 30;
+      compressor.ratio.value = 12;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.25;
+      mediaSource.connect(audioCtx.destination);
+    }
+    function setNormalizer(enabled) {
+      normalizerEnabled = enabled;
+      if (!audioCtx) initAudioGraph();
+      if (!audioCtx || !mediaSource || !compressor) return;
+      try { mediaSource.disconnect(); compressor.disconnect(); } catch (e) {}
+      if (enabled) {
+        mediaSource.connect(compressor);
+        compressor.connect(audioCtx.destination);
+      } else {
+        mediaSource.connect(audioCtx.destination);
+      }
+    }
+    function updateNormalizeBtn() {
+      normalizeBtn.textContent = normalizerEnabled ? '均衡:开' : '均衡:关';
+      normalizeBtn.classList.toggle('active', normalizerEnabled);
+    }
+    normalizeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      normalizerEnabled = !normalizerEnabled;
+      localStorage.setItem('car_video_normalize', normalizerEnabled ? '1' : '0');
+      updateNormalizeBtn();
+      if (video.src) setNormalizer(normalizerEnabled);
+    });
+    video.addEventListener('play', () => {
+      if (!audioCtx) initAudioGraph();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      if (normalizerEnabled && video.src) setNormalizer(true);
+    });
+    updateNormalizeBtn();
 
     // 进度更新
     function formatTime(s) {
@@ -372,7 +625,6 @@
       const sec = Math.floor(s % 60);
       return `${m}:${String(sec).padStart(2, '0')}`;
     }
-
     video.addEventListener('loadedmetadata', () => {
       progressBar.max = video.duration || 100;
       durationEl.textContent = formatTime(video.duration);
@@ -408,7 +660,6 @@
       }
     });
 
-    // 初始图标
     updatePlayIcon();
   </script>
 </body>
