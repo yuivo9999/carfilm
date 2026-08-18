@@ -79,6 +79,7 @@
 
     /* 视频屏幕：固定黑色描边，缩放只作用于内部 video，边框不被平板遮住 */
     #screen {
+      position: relative;
       width: 100%; height: 100%;
       border: 4px solid #000;
       border-radius: 4px;
@@ -88,6 +89,24 @@
       align-items: center;
       justify-content: center;
     }
+
+    /* 视频右上角：播放时间 / 总时间（白字、无背景无样式，高度为平板高度的 1/12） */
+    #video-time {
+      position: absolute;
+      top: 0; right: 0;
+      z-index: 6;
+      color: #fff;
+      font-weight: 400;
+      line-height: 1;
+      padding: 3px 7px;
+      pointer-events: none;
+      text-shadow: none;
+      background: none;
+      border: none;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    #video-time.hidden { display: none; }
 
     video {
       width: 100%; height: 100%;
@@ -395,6 +414,7 @@
   <div id="tablet">
     <div id="screen">
       <video id="video" playsinline></video>
+      <div id="video-time">0:00 / 0:00</div>
     </div>
   </div>
 
@@ -456,6 +476,7 @@
         <span class="ctrl-label">跳过片尾</span>
         <input id="skip-end" class="skip-input" type="number" min="0" step="1" value="3" title="播放到片尾前几秒自动循环" />
         <span class="ctrl-label">秒</span>
+        <button id="video-time-toggle" title="显示/隐藏视频右上角时间">时间:开</button>
       </div>
       <div class="group">
         <label class="file-btn" for="file-input" title="选择本地视频">
@@ -488,6 +509,8 @@
     const skipEndInput = document.getElementById('skip-end');
     const rewind30Btn = document.getElementById('rewind30-btn');
     const forward30Btn = document.getElementById('forward30-btn');
+    const videoTimeEl = document.getElementById('video-time');
+    const videoTimeToggle = document.getElementById('video-time-toggle');
     const progressBar = document.getElementById('progress-bar');
     const currentEl = document.getElementById('current');
     const durationEl = document.getElementById('duration');
@@ -794,6 +817,28 @@
       localStorage.setItem('car_video_skipend', v);
     });
 
+    // ----- 视频右上角时间显示（可开关） -----
+    function applyVideoTimeFont() {
+      const h = tablet.clientHeight;
+      if (h) videoTimeEl.style.fontSize = (h / 12) + 'px';
+    }
+    function updateVideoTime() {
+      videoTimeEl.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
+    }
+    function setVideoTimeOn(on) {
+      videoTimeToggle.textContent = on ? '时间:开' : '时间:关';
+      videoTimeEl.classList.toggle('hidden', !on);
+      localStorage.setItem('car_video_time_on', on ? '1' : '0');
+    }
+    const savedTimeOn = localStorage.getItem('car_video_time_on');
+    setVideoTimeOn(savedTimeOn === null ? true : savedTimeOn === '1');
+    videoTimeToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setVideoTimeOn(videoTimeEl.classList.contains('hidden'));
+    });
+    applyVideoTimeFont();
+    window.addEventListener('resize', applyVideoTimeFont);
+
     // ----- 快退30秒 / 快进30秒 -----
     rewind30Btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -816,10 +861,12 @@
     video.addEventListener('loadedmetadata', () => {
       progressBar.max = video.duration || 100;
       durationEl.textContent = formatTime(video.duration);
+      updateVideoTime();
     });
     video.addEventListener('timeupdate', () => {
       progressBar.value = video.currentTime;
       currentEl.textContent = formatTime(video.currentTime);
+      updateVideoTime();
       // 跳过片尾：播放到片尾前 N 秒自动循环播放（无任何提示）
       if (skipEnd > 0 && video.duration && isFinite(video.duration) &&
           video.currentTime >= video.duration - skipEnd - 0.25) {
