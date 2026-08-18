@@ -820,7 +820,7 @@
     // ----- 视频右上角时间显示（可开关） -----
     function applyVideoTimeFont() {
       const h = tablet.clientHeight;
-      if (h) videoTimeEl.style.fontSize = (h / 12) + 'px';
+      if (h) videoTimeEl.style.fontSize = (h / 48) + 'px';
     }
     function updateVideoTime() {
       videoTimeEl.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
