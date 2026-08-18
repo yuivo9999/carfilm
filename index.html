@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>车载本地视频播放器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    /* 背景图 */
+    #background {
+      position: fixed;
+      inset: 0;
+      background: url("bg.jpg") center center / cover no-repeat;
+      z-index: 0;
+    }
+
+    /* 顶部常驻信息层 */
+    #top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 20;
+      padding: 36px 20px 18px;
+      text-align: center;
+      color: #fff;
+      pointer-events: none;
+    }
+    #clock {
+      font-size: 68px;
+      font-weight: 600;
+      letter-spacing: 0;
+      line-height: 1;
+      pointer-events: auto;
+      color: #ffffff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.45);
+    }
+    #subtitle {
+      margin-top: 8px;
+      font-size: 16px;
+      font-weight: 400;
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-block;
+      padding: 6px 18px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.72);
+      color: rgba(255,255,255,0.82);
+      transition: background 0.2s, color 0.2s;
+      min-width: 120px;
+      max-width: 80vw;
+      outline: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid transparent;
+    }
+    #subtitle:hover, #subtitle.editing {
+      background: rgba(0,0,0,0.88);
+      color: #fff;
+      border-color: rgba(255,255,255,0.25);
+    }
+
+    /* 中间平板电脑 */
+    #tablet {
+      position: fixed;
+      z-index: 10;
+      top: 46%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(74vw, 840px);
+      aspect-ratio: 16 / 10.2;
+      background: #000;
+      border-radius: 18px;
+      box-shadow:
+        0 18px 50px rgba(0,0,0,0.65),
+        inset 0 0 0 10px #1a1a1a,
+        inset 0 0 0 11px #333;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      background: #000;
+      cursor: pointer;
+    }
+    video:not([src]) {
+      opacity: 0;
+    }
+
+    /* 底部控制栏 */
+    #controls {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 30;
+      padding: 14px 24px 22px;
+      color: #fff;
+      background: linear-gradient(to top, rgba(0,0,0,0.72), transparent);
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      user-select: none;
+    }
+    #controls.hidden {
+      opacity: 0;
+      transform: translateY(30px);
+      pointer-events: none;
+    }
+
+    /* 进度条 */
+    #progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.9);
+    }
+    #progress-bar {
+      flex: 1;
+      height: 5px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.22);
+      border-radius: 3px;
+      cursor: pointer;
+      outline: none;
+    }
+    #progress-bar::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 6px rgba(0,0,0,0.5);
+      margin-top: -4.5px;
+    }
+    #progress-bar::-webkit-slider-runnable-track {
+      height: 5px; border-radius: 3px;
+    }
+    #progress-bar::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      border: none;
+    }
+
+    /* 按钮行 */
+    #buttons-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button, .file-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #fff;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px;
+      backdrop-filter: blur(4px);
+    }
+    button:hover, .file-btn:hover { background: rgba(255,255,255,0.24); }
+    button:active, .file-btn:active { transform: scale(0.96); }
+    button svg, .file-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    #volume {
+      width: 90px;
+      cursor: pointer;
+      accent-color: #fff;
+    }
+    .time-text { min-width: 42px; text-align: center; }
+
+    /* 隐藏原生文件输入 */
+    #file-input { display: none; }
+
+    /* 响应式 */
+    @media (max-width: 640px) {
+      #top-bar { padding-top: 22px; }
+      #clock { font-size: 44px; }
+      #subtitle { font-size: 14px; padding: 5px 14px; }
+      #tablet { width: 92vw; top: 44%; }
+      button, .file-btn { padding: 8px 11px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="background"></div>
+
+  <div id="top-bar">
+    <div id="clock">00:00</div>
+    <div id="subtitle" contenteditable="true" spellcheck="false">点击编辑文字</div>
+  </div>
+
+  <div id="tablet">
+    <video id="video" playsinline></video>
+  </div>
+
+  <div id="controls">
+    <div id="progress-row">
+      <span class="time-text" id="current">0:00</span>
+      <input id="progress-bar" type="range" min="0" max="100" value="0" step="0.1" />
+      <span class="time-text" id="duration">0:00</span>
+    </div>
+    <div id="buttons-row">
+      <div class="group">
+        <button id="play-btn" title="播放/暂停">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button id="stop-btn" title="停止">
+          <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+        </button>
+        <input id="volume" type="range" min="0" max="1" step="0.05" value="1" title="音量" />
+      </div>
+      <div class="group">
+        <label class="file-btn" for="file-input" title="选择本地视频">
+          <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+          选择本地视频
+        </label>
+        <input id="file-input" type="file" accept="video/*" />
+        <label class="file-btn" for="bg-input" title="更换背景图片">
+          <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          更换背景
+        </label>
+        <input id="bg-input" type="file" accept="image/*" />
+        <button id="fullscreen-btn" title="全屏">
+          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const playBtn = document.getElementById('play-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const fileInput = document.getElementById('file-input');
+    const bgInput = document.getElementById('bg-input');
+    const backgroundEl = document.getElementById('background');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const currentEl = document.getElementById('current');
+    const durationEl = document.getElementById('duration');
+    const volumeEl = document.getElementById('volume');
+    const controls = document.getElementById('controls');
+    const clockEl = document.getElementById('clock');
+    const subtitleEl = document.getElementById('subtitle');
+
+    let hideTimer = null;
+    const HIDE_DELAY = 5000;
+
+    // 图标
+    const iconPlay = '<path d="M8 5v14l11-7z"/>';
+    const iconPause = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+
+    // 时钟更新
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      clockEl.textContent = `${h}:${m}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // 字幕编辑处理：回车保存、失焦保存
+    subtitleEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        subtitleEl.blur();
+      }
+    });
+    subtitleEl.addEventListener('focus', () => subtitleEl.classList.add('editing'));
+    subtitleEl.addEventListener('blur', () => {
+      subtitleEl.classList.remove('editing');
+      if (!subtitleEl.textContent.trim()) subtitleEl.textContent = '点击编辑文字';
+      localStorage.setItem('car_video_subtitle', subtitleEl.textContent);
+    });
+    const saved = localStorage.getItem('car_video_subtitle');
+    if (saved) subtitleEl.textContent = saved;
+
+    // 自动隐藏控制栏
+    function showControls() {
+      controls.classList.remove('hidden');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => controls.classList.add('hidden'), HIDE_DELAY);
+    }
+    function resetHideTimer() {
+      showControls();
+    }
+
+    ['mousemove', 'mousedown', 'touchstart', 'keydown', 'click'].forEach(evt => {
+      document.addEventListener(evt, resetHideTimer, { passive: true });
+    });
+    showControls();
+
+    // 视频控制
+    function togglePlay() {
+      if (!video.src) return;
+      if (video.paused) video.play();
+      else video.pause();
+    }
+
+    function updatePlayIcon() {
+      playBtn.innerHTML = video.paused ? `<svg viewBox="0 0 24 24">${iconPlay}</svg>` : `<svg viewBox="0 0 24 24">${iconPause}</svg>`;
+    }
+
+    playBtn.addEventListener('click', togglePlay);
+    video.addEventListener('click', togglePlay);
+
+    stopBtn.addEventListener('click', () => {
+      if (video.src) URL.revokeObjectURL(video.src);
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.play().catch(() => {});
+    });
+
+    // 更换背景图片：选择本地图片并持久化
+    bgInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        backgroundEl.style.backgroundImage = `url("${reader.result}")`;
+        try { localStorage.setItem('car_video_bg', reader.result); } catch (err) {}
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 加载已保存的自定义背景
+    const savedBg = localStorage.getItem('car_video_bg');
+    if (savedBg) backgroundEl.style.backgroundImage = `url("${savedBg}")`;
+
+    fullscreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+      else document.exitFullscreen().catch(() => {});
+    });
+
+    volumeEl.addEventListener('input', () => { video.volume = volumeEl.value; });
+
+    // 进度更新
+    function formatTime(s) {
+      if (!isFinite(s)) return '0:00';
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
+    video.addEventListener('loadedmetadata', () => {
+      progressBar.max = video.duration || 100;
+      durationEl.textContent = formatTime(video.duration);
+    });
+    video.addEventListener('timeupdate', () => {
+      progressBar.value = video.currentTime;
+      currentEl.textContent = formatTime(video.currentTime);
+    });
+    video.addEventListener('play', updatePlayIcon);
+    video.addEventListener('pause', updatePlayIcon);
+    video.addEventListener('ended', updatePlayIcon);
+
+    let isDragging = false;
+    progressBar.addEventListener('input', () => {
+      isDragging = true;
+      video.currentTime = progressBar.value;
+      currentEl.textContent = formatTime(video.currentTime);
+    });
+    progressBar.addEventListener('change', () => { isDragging = false; });
+
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+      if (e.target.isContentEditable) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowRight') {
+        video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+      } else if (e.code === 'ArrowLeft') {
+        video.currentTime = Math.max(0, video.currentTime - 5);
+      } else if (e.code === 'KeyF') {
+        fullscreenBtn.click();
+      }
+    });
+
+    // 初始图标
+    updatePlayIcon();
+  </script>
+</body>
+</html>
