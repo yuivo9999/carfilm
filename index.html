@@ -443,9 +443,9 @@
       font-size: 12px;
       line-height: 1;
       cursor: pointer;
-      display: none;
+      display: block;
     }
-    .bg-tile:hover .bg-tile-del { display: block; }
+    .bg-tile:hover { bbackground: rgba(220,38,38,0.9);}
     .bg-add-tile {
       display: flex;
       flex-direction: row;
@@ -956,6 +956,7 @@
         del.title = '删除该背景';
         del.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (!confirm('确认删除这张背景图吗？')) return;
           const lib = loadBgLib().filter(b => b.id !== opts.id);
           saveBgLib(lib);
           if (getCurrentBgId() === opts.id) applyBgById(BG_DEFAULT);
