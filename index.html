@@ -1008,8 +1008,8 @@
       Promise.all([ compressImage(file, 240, 0.6), compressImage(file, 1600, 0.8) ])
         .then(([thumb, full]) => {
           pendingBg = { name: file.name || '背景', thumb, full };
-          selectedId = null; selectedIsPending = false;
-          bgConfirmBtn.disabled = true;
+          selectedId = 'pending'; selectedIsPending = true;
+          bgConfirmBtn.disabled = false;
           renderBgLibrary();
         })
         .catch(() => { alert('图片读取失败，请换一张再试。'); });
