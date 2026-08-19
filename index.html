@@ -570,7 +570,8 @@
     if (saved) subtitleEl.textContent = saved;
 
     // ----- 全屏：竖屏 / 横屏 独立 -----
-    function goFullscreen(lockLandscape) {
+    // orient: 'portrait' | 'landscape' | 'none'
+    function goFullscreen(orient) {
       fsHint.classList.add('hidden');
       const el = document.documentElement;
       const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
@@ -578,8 +579,11 @@
       const p = req.call(el);
       if (p && p.then) {
         p.then(() => {
-          if (lockLandscape && screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => {});
+          if (screen.orientation && screen.orientation.lock) {
+            // 显式设定方向，避免残留的旧锁串味；'none' 则解除锁定
+            if (orient === 'landscape') screen.orientation.lock('landscape').catch(() => {});
+            else if (orient === 'portrait') screen.orientation.lock('portrait').catch(() => {});
+            else { try { screen.orientation.unlock(); } catch (e) {} }
           }
         }).catch(() => {});
       }
@@ -591,18 +595,18 @@
       const ex = document.exitFullscreen || document.webkitExitFullscreen;
       if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
     }
-    fsHint.addEventListener('click', () => goFullscreen(false));
+    fsHint.addEventListener('click', () => goFullscreen('none'));
     ['click', 'touchstart', 'keydown'].forEach(ev => {
-      document.addEventListener(ev, () => goFullscreen(false), { once: true, passive: true });
+      document.addEventListener(ev, () => goFullscreen('none'), { once: true, passive: true });
     });
     fullscreenPortraitBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) goFullscreen(false);
+      if (!document.fullscreenElement) goFullscreen('portrait');
       else exitFullscreen();
     });
     fullscreenLandscapeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) goFullscreen(true);
+      if (!document.fullscreenElement) goFullscreen('landscape');
       else exitFullscreen();
     });
 
