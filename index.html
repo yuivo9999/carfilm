@@ -880,8 +880,13 @@
       video.play().catch(() => {});
     });
 
-    // ----- 背景库（localStorage 多图集合 + 缩略图弹窗） -----
+    // ----- 背景库（localStorage，最多 6 张，缩略图预览 + 确认后才存全图） -----
     const BG_DEFAULT = 'default';
+    const MAX_SLOTS = 6;
+    let pendingBg = null;          // 待确认新图：{name, thumb, full}
+    let selectedId = null;         // 当前选中（绿勾）的 id
+    let selectedIsPending = false;
+
     function loadBgLib() {
       try {
         const raw = localStorage.getItem('car_video_backgrounds');
@@ -890,7 +895,8 @@
       } catch (e) { return []; }
     }
     function saveBgLib(arr) {
-      try { localStorage.setItem('car_video_backgrounds', JSON.stringify(arr)); } catch (e) {}
+      try { localStorage.setItem('car_video_backgrounds', JSON.stringify(arr)); return true; }
+      catch (e) { return false; }   // 配额不足返回 false
     }
     function getCurrentBgId() {
       return localStorage.getItem('car_video_current_bg') || BG_DEFAULT;
@@ -901,35 +907,75 @@
         backgroundEl.style.backgroundImage = '';   // 回退到 CSS 里的 bg.jpg
       } else {
         const item = lib.find(b => b.id === id);
-        if (item) backgroundEl.style.backgroundImage = `url("${item.dataUrl}")`;
+        if (item) backgroundEl.style.backgroundImage = `url("${item.full}")`;
       }
       localStorage.setItem('car_video_current_bg', id);
     }
-    function makeBgTile(id, name, dataUrl, isDefault) {
+    // 压缩图片：限制最长边 maxDim，输出 JPEG
+    function compressImage(file, maxDim, quality) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            const w = Math.max(1, Math.round(img.width * scale));
+            const h = Math.max(1, Math.round(img.height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    function buildTile(opts) {
+      // opts: {id, name, displayUrl, isDefault, isPending}
       const tile = document.createElement('div');
       tile.className = 'bg-tile';
-      if (getCurrentBgId() === id) tile.classList.add('current');
-      tile.style.backgroundImage = isDefault ? 'url("bg.jpg")' : `url("${dataUrl}")`;
-      tile.title = name;
+      if (opts.isPending) tile.classList.add('pending');
+      if (!opts.isPending && getCurrentBgId() === opts.id) tile.classList.add('current');
+      if (selectedId === opts.id) tile.classList.add('selected');
+      tile.style.backgroundImage = opts.isDefault ? 'url("bg.jpg")' : `url("${opts.displayUrl}")`;
+      tile.title = opts.name;
       const nameEl = document.createElement('div');
       nameEl.className = 'bg-name';
-      nameEl.textContent = name;
+      nameEl.textContent = opts.name;
       tile.appendChild(nameEl);
-      tile.addEventListener('click', (e) => {
-        e.stopPropagation();
-        applyBgById(id);
-        closeBgLibrary();
+      tile.addEventListener('click', () => {
+        selectedId = opts.id;
+        selectedIsPending = !!opts.isPending;
+        bgConfirmBtn.disabled = false;
+        renderBgLibrary();
       });
-      if (!isDefault) {
+      if (!opts.isDefault && !opts.isPending) {
         const del = document.createElement('button');
         del.className = 'bg-tile-del';
         del.textContent = '✕';
         del.title = '删除该背景';
         del.addEventListener('click', (e) => {
           e.stopPropagation();
-          let lib = loadBgLib().filter(b => b.id !== id);
+          const lib = loadBgLib().filter(b => b.id !== opts.id);
           saveBgLib(lib);
-          if (getCurrentBgId() === id) applyBgById(BG_DEFAULT);
+          if (getCurrentBgId() === opts.id) applyBgById(BG_DEFAULT);
+          if (selectedId === opts.id) { selectedId = null; bgConfirmBtn.disabled = true; }
+          renderBgLibrary();
+        });
+        tile.appendChild(del);
+      }
+      if (opts.isPending) {
+        const del = document.createElement('button');
+        del.className = 'bg-tile-del';
+        del.textContent = '✕';
+        del.title = '取消添加';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pendingBg = null;
+          if (selectedIsPending) { selectedId = null; bgConfirmBtn.disabled = true; }
           renderBgLibrary();
         });
         tile.appendChild(del);
@@ -937,45 +983,66 @@
       return tile;
     }
     function renderBgLibrary() {
+      const lib = loadBgLib();
       bgGrid.innerHTML = '';
-      bgGrid.appendChild(makeBgTile(BG_DEFAULT, '默认壁纸', null, true));
-      loadBgLib().forEach(item => bgGrid.appendChild(makeBgTile(item.id, item.name, item.dataUrl, false)));
+      bgGrid.appendChild(buildTile({ id: BG_DEFAULT, name: '默认壁纸', displayUrl: null, isDefault: true }));
+      lib.forEach(item => bgGrid.appendChild(buildTile({ id: item.id, name: item.name, displayUrl: item.thumb, isDefault: false })));
+      if (pendingBg) bgGrid.appendChild(buildTile({ id: 'pending', name: pendingBg.name, displayUrl: pendingBg.thumb, isDefault: false, isPending: true }));
+      // 名额已满时禁用"添加背景"
+      const full = lib.length >= MAX_SLOTS;
+      bgAddTile.style.opacity = full ? '0.4' : '1';
+      bgAddTile.style.pointerEvents = full ? 'none' : 'auto';
     }
-    function openBgLibrary() {
-      renderBgLibrary();
-      bgLibrary.classList.remove('hidden');
-    }
-    function closeBgLibrary() {
-      bgLibrary.classList.add('hidden');
-    }
+    function closeBgLibrary() { bgLibrary.classList.add('hidden'); }
     bgLibBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      openBgLibrary();
+      renderBgLibrary();
+      bgLibrary.classList.remove('hidden');
     });
-    bgLibrary.addEventListener('click', (e) => {
-      if (e.target === bgLibrary) closeBgLibrary();
-    });
-    bgLibClose.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeBgLibrary();
-    });
+    bgLibrary.addEventListener('click', (e) => { if (e.target === bgLibrary) closeBgLibrary(); });
+    bgLibClose.addEventListener('click', (e) => { e.stopPropagation(); closeBgLibrary(); });
 
-    // 选择 / 添加本地背景图片（加入背景库并应用）
+    // 选择 / 添加本地背景图片（先压缩成缩略图预览，确认后才存全图）
     bgInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const lib = loadBgLib();
-        const id = 'bg_' + Date.now();
-        lib.push({ id, name: file.name || '背景', dataUrl: reader.result });
-        saveBgLib(lib);
-        applyBgById(id);
-        if (!bgLibrary.classList.contains('hidden')) renderBgLibrary();
-      };
-      reader.readAsDataURL(file);
       e.target.value = '';
+      Promise.all([ compressImage(file, 240, 0.6), compressImage(file, 1600, 0.8) ])
+        .then(([thumb, full]) => {
+          pendingBg = { name: file.name || '背景', thumb, full };
+          selectedId = null; selectedIsPending = false;
+          bgConfirmBtn.disabled = true;
+          renderBgLibrary();
+        })
+        .catch(() => { alert('图片读取失败，请换一张再试。'); });
     });
+
+    // 确认：应用选中项；若是待确认新图则先校验名额并存入
+    bgConfirmBtn.addEventListener('click', () => {
+      if (bgConfirmBtn.disabled) return;
+      if (selectedId === BG_DEFAULT) {
+        applyBgById(BG_DEFAULT);
+      } else if (selectedIsPending && pendingBg) {
+        const lib = loadBgLib();
+        if (lib.length >= MAX_SLOTS) {
+          alert('背景图最多 ' + MAX_SLOTS + ' 张，请先删除一些再添加。');
+          return;
+        }
+        const id = 'bg_' + Date.now();
+        if (!saveBgLib(lib.concat({ id, name: pendingBg.name, thumb: pendingBg.thumb, full: pendingBg.full }))) {
+          alert('本地存储空间不足，请删除部分背景后重试。');
+          return;
+        }
+        applyBgById(id);
+        pendingBg = null;
+      } else if (selectedId) {
+        applyBgById(selectedId);
+      }
+      selectedId = null; selectedIsPending = false;
+      bgConfirmBtn.disabled = true;
+      renderBgLibrary();
+    });
+
     // 启动时恢复上次选中的背景
     applyBgById(getCurrentBgId());
 
