@@ -49,7 +49,7 @@
       cursor: pointer;
       display: inline-block;
       outline: none;
-      color: #ddd0bf;
+      color: rgba(255, 255, 255, 0.5);
       -webkit-text-stroke: 1px rgba(0,0,0,0.3);
       min-width: 80px;
       max-width: 80vw;
@@ -234,7 +234,7 @@
       position: fixed;
       z-index: 15;
       left: 30%; bottom: 0;
-      width: 40%; height: 60px;
+      width: 50%; height: 140px;
       cursor: pointer;
     }
 
@@ -346,10 +346,11 @@
       cursor: pointer;
       backdrop-filter: blur(4px);
       white-space: nowrap;
-      min-width: max-content;
     }
     input.skip-input {
       width: 16px;
+      padding: 8px 3px;
+      min-width: 0;
       text-align: center;
       cursor: text;
       -moz-appearance: textfield;
