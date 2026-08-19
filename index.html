@@ -349,7 +349,7 @@
       min-width: max-content;
     }
     input.skip-input {
-      width: 56px;
+      width: 16px;
       text-align: center;
       cursor: text;
       -moz-appearance: textfield;
@@ -478,6 +478,7 @@
         <span class="ctrl-label">跳过片尾</span>
         <input id="skip-end" class="skip-input" type="number" min="0" step="1" value="3" title="播放到片尾前几秒自动循环" />
         <span class="ctrl-label">秒</span>
+        <button id="bg-reset-btn" title="恢复默认背景壁纸">恢复默认背景</button>
         <button id="video-time-toggle" title="显示/隐藏视频右上角时间">时间:开</button>
       </div>
       <div class="group">
@@ -505,6 +506,7 @@
     const fileInput = document.getElementById('file-input');
     const bgInput = document.getElementById('bg-input');
     const backgroundEl = document.getElementById('background');
+    const bgResetBtn = document.getElementById('bg-reset-btn');
     const fullscreenPortraitBtn = document.getElementById('fullscreen-portrait-btn');
     const fullscreenLandscapeBtn = document.getElementById('fullscreen-landscape-btn');
     const speedSelect = document.getElementById('speed');
@@ -750,7 +752,14 @@
     if (savedBg) backgroundEl.style.backgroundImage = `url("${savedBg}")`;
 
     volumeEl.addEventListener('input', () => { video.volume = volumeEl.value; });
-
+    
+    // 恢复默认背景壁纸（bg.jpg）
+    bgResetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      backgroundEl.style.backgroundImage = '';      // 清除内联样式，回退到 CSS 里的 bg.jpg
+      localStorage.removeItem('car_video_bg');       // 同时清掉用户自定义的背景
+    });
+    
     // ----- 音量均衡（响度压缩） -----
     let audioCtx = null;
     let mediaSource = null;
