@@ -448,11 +448,12 @@
     .bg-tile:hover .bg-tile-del { display: block; }
     .bg-add-tile {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      aspect-ratio: 16 / 10;
+      gap: 8px;
+      height: 44px;
+      margin-top: 12px;
       border-radius: 10px;
       border: 2px dashed rgba(255,255,255,0.3);
       color: rgba(255,255,255,0.8);
@@ -460,7 +461,7 @@
       font-size: 13px;
     }
     .bg-add-tile:hover { border-color: rgba(255,255,255,0.6); color: #fff; }
-    .bg-add-tile .plus { font-size: 26px; line-height: 1; }
+    .bg-add-tile .plus { font-size: 18px; line-height: 1; }
     .bg-tile.selected { border-color: #2e7d32; }
     .bg-tile.selected::after {
       content: '✓';
