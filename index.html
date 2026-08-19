@@ -362,6 +362,105 @@
     /* 隐藏原生文件输入 */
     #file-input, #bg-input { display: none; }
 
+    /* 背景库弹窗面板 */
+    #bg-library {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+    #bg-library.hidden { display: none; }
+    .bg-library-box {
+      width: min(92vw, 560px);
+      max-height: 80vh;
+      overflow-y: auto;
+      background: #1c1c1c;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .bg-library-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+      font-size: 16px;
+      margin-bottom: 14px;
+    }
+    .bg-library-head button {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #fff;
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .bg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+      gap: 12px;
+    }
+    .bg-tile {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      border-radius: 10px;
+      background-size: cover;
+      background-position: center;
+      cursor: pointer;
+      border: 2px solid transparent;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .bg-tile:hover { border-color: rgba(255,255,255,0.5); }
+    .bg-tile.current { border-color: #4da3ff; }
+    .bg-tile .bg-name {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      font-size: 11px;
+      color: #fff;
+      background: rgba(0,0,0,0.55);
+      padding: 2px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bg-tile-del {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 20px; height: 20px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: none;
+    }
+    .bg-tile:hover .bg-tile-del { display: block; }
+    .bg-add-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      aspect-ratio: 16 / 10;
+      border-radius: 10px;
+      border: 2px dashed rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .bg-add-tile:hover { border-color: rgba(255,255,255,0.6); color: #fff; }
+    .bg-add-tile .plus { font-size: 26px; line-height: 1; }
+    
     /* 打开时的全屏引导浮层 */
     #fs-hint {
       position: fixed;
@@ -478,7 +577,7 @@
         <span class="ctrl-label">跳过片尾</span>
         <input id="skip-end" class="skip-input" type="number" min="0" step="1" value="3" title="播放到片尾前几秒自动循环" />
         <span class="ctrl-label">秒</span>
-        <button id="bg-reset-btn" title="恢复默认背景壁纸">恢复默认背景</button>
+        <button id="bg-library-btn" title="打开背景库，选择或管理背景壁纸">背景库</button>
         <button id="video-time-toggle" title="显示/隐藏视频右上角时间">时间:开</button>
       </div>
       <div class="group">
@@ -498,6 +597,21 @@
     </div>
   </div>
 
+  <!-- 背景库弹窗面板 -->
+  <div id="bg-library" class="hidden">
+    <div class="bg-library-box">
+      <div class="bg-library-head">
+        <span>背景库</span>
+        <button id="bg-library-close" title="关闭">✕</button>
+      </div>
+      <div class="bg-grid" id="bg-grid"></div>
+      <label class="bg-add-tile" for="bg-input" title="从本地添加背景图片">
+        <span class="plus">+</span>
+        <span>添加背景</span>
+      </label>
+    </div>
+  </div>
+  
   <script>
     const video = document.getElementById('video');
     const tablet = document.getElementById('tablet');
@@ -506,7 +620,10 @@
     const fileInput = document.getElementById('file-input');
     const bgInput = document.getElementById('bg-input');
     const backgroundEl = document.getElementById('background');
-    const bgResetBtn = document.getElementById('bg-reset-btn');
+    const bgLibBtn = document.getElementById('bg-library-btn');
+    const bgLibrary = document.getElementById('bg-library');
+    const bgGrid = document.getElementById('bg-grid');
+    const bgLibClose = document.getElementById('bg-library-close');
     const fullscreenPortraitBtn = document.getElementById('fullscreen-portrait-btn');
     const fullscreenLandscapeBtn = document.getElementById('fullscreen-landscape-btn');
     const speedSelect = document.getElementById('speed');
@@ -737,28 +854,106 @@
       video.play().catch(() => {});
     });
 
-    // 更换背景图片：选择本地图片并持久化
+    // ----- 背景库（localStorage 多图集合 + 缩略图弹窗） -----
+    const BG_DEFAULT = 'default';
+    function loadBgLib() {
+      try {
+        const raw = localStorage.getItem('car_video_backgrounds');
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) { return []; }
+    }
+    function saveBgLib(arr) {
+      try { localStorage.setItem('car_video_backgrounds', JSON.stringify(arr)); } catch (e) {}
+    }
+    function getCurrentBgId() {
+      return localStorage.getItem('car_video_current_bg') || BG_DEFAULT;
+    }
+    function applyBgById(id) {
+      const lib = loadBgLib();
+      if (id === BG_DEFAULT) {
+        backgroundEl.style.backgroundImage = '';   // 回退到 CSS 里的 bg.jpg
+      } else {
+        const item = lib.find(b => b.id === id);
+        if (item) backgroundEl.style.backgroundImage = `url("${item.dataUrl}")`;
+      }
+      localStorage.setItem('car_video_current_bg', id);
+    }
+    function makeBgTile(id, name, dataUrl, isDefault) {
+      const tile = document.createElement('div');
+      tile.className = 'bg-tile';
+      if (getCurrentBgId() === id) tile.classList.add('current');
+      tile.style.backgroundImage = isDefault ? 'url("bg.jpg")' : `url("${dataUrl}")`;
+      tile.title = name;
+      const nameEl = document.createElement('div');
+      nameEl.className = 'bg-name';
+      nameEl.textContent = name;
+      tile.appendChild(nameEl);
+      tile.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyBgById(id);
+        closeBgLibrary();
+      });
+      if (!isDefault) {
+        const del = document.createElement('button');
+        del.className = 'bg-tile-del';
+        del.textContent = '✕';
+        del.title = '删除该背景';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          let lib = loadBgLib().filter(b => b.id !== id);
+          saveBgLib(lib);
+          if (getCurrentBgId() === id) applyBgById(BG_DEFAULT);
+          renderBgLibrary();
+        });
+        tile.appendChild(del);
+      }
+      return tile;
+    }
+    function renderBgLibrary() {
+      bgGrid.innerHTML = '';
+      bgGrid.appendChild(makeBgTile(BG_DEFAULT, '默认壁纸', null, true));
+      loadBgLib().forEach(item => bgGrid.appendChild(makeBgTile(item.id, item.name, item.dataUrl, false)));
+    }
+    function openBgLibrary() {
+      renderBgLibrary();
+      bgLibrary.classList.remove('hidden');
+    }
+    function closeBgLibrary() {
+      bgLibrary.classList.add('hidden');
+    }
+    bgLibBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openBgLibrary();
+    });
+    bgLibrary.addEventListener('click', (e) => {
+      if (e.target === bgLibrary) closeBgLibrary();
+    });
+    bgLibClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeBgLibrary();
+    });
+
+    // 选择 / 添加本地背景图片（加入背景库并应用）
     bgInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        backgroundEl.style.backgroundImage = `url("${reader.result}")`;
-        try { localStorage.setItem('car_video_bg', reader.result); } catch (err) {}
+        const lib = loadBgLib();
+        const id = 'bg_' + Date.now();
+        lib.push({ id, name: file.name || '背景', dataUrl: reader.result });
+        saveBgLib(lib);
+        applyBgById(id);
+        if (!bgLibrary.classList.contains('hidden')) renderBgLibrary();
       };
       reader.readAsDataURL(file);
+      e.target.value = '';
     });
-    const savedBg = localStorage.getItem('car_video_bg');
-    if (savedBg) backgroundEl.style.backgroundImage = `url("${savedBg}")`;
+    // 启动时恢复上次选中的背景
+    applyBgById(getCurrentBgId());
 
     volumeEl.addEventListener('input', () => { video.volume = volumeEl.value; });
-    
-    // 恢复默认背景壁纸（bg.jpg）
-    bgResetBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      backgroundEl.style.backgroundImage = '';      // 清除内联样式，回退到 CSS 里的 bg.jpg
-      localStorage.removeItem('car_video_bg');       // 同时清掉用户自定义的背景
-    });
     
     // ----- 音量均衡（响度压缩） -----
     let audioCtx = null;
