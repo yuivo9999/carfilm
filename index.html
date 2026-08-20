@@ -567,8 +567,8 @@
 </head>
 <body>
 
-    <!-- 打开时引导进入全屏 -->
-  <div id="fs-hint">点击任意位置进入全屏观看</div>
+      <!-- 打开时引导进入全屏 -->
+  <div id="fs-hint" class="hidden">点击任意位置进入全屏观看</div>
 
   <div id="background"></div>
 
@@ -576,6 +576,7 @@
     <div id="clock">00:00</div>
     <div id="subtitle" contenteditable="true" spellcheck="false">点击编辑文字</div>
   </div>
+
 
       <!-- 顶部时间与文字的上下移动控制（左：文字 / 右：时间） -->
   <div id="pos-controls">
@@ -726,8 +727,7 @@
     const positionReset = document.getElementById('position-reset');
     const controlsZone = document.getElementById('controls-zone');
     const normalizeBtn = document.getElementById('normalize-btn');
-    const fsHint = document.getElementById('fs-hint');
-
+    
     // 图标
     const iconPlay = '<path d="M8 5v14l11-7z"/>';
     const iconPause = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
@@ -817,7 +817,6 @@
     // ----- 全屏：竖屏 / 横屏 独立 -----
     // orient: 'portrait' | 'landscape' | 'none'
     function goFullscreen(orient) {
-      fsHint.classList.add('hidden');
       const el = document.documentElement;
       const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
       if (!req || document.fullscreenElement) return;
@@ -839,8 +838,7 @@
       }
       const ex = document.exitFullscreen || document.webkitExitFullscreen;
       if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
-    }
-    fsHint.addEventListener('click', () => goFullscreen('none'));
+    } 
     ['click', 'touchstart', 'keydown'].forEach(ev => {
       document.addEventListener(ev, () => goFullscreen('none'), { once: true, passive: true });
     });
