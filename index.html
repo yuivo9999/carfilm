@@ -121,12 +121,7 @@
       justify-content: center;
     }
 
-        /* 陀螺仪自动方向：非全屏时平板自身横/竖布局跟随手机方向（不旋转整页） */
-    #tablet.gyro-portrait {
-      width: min(46vw, 520px);
-      aspect-ratio: 10.2 / 16;
-      top: 50%;
-    }
+        
 
     /* 视频屏幕：固定黑色描边，缩放只作用于内部 video，边框不被平板遮住 */
     #screen {
@@ -574,27 +569,7 @@
 </head>
 <body>
 
-      /* 全屏：平板占满整个屏幕，方向由 screen.orientation.lock 控制 */
-    body.is-fullscreen #tablet {
-      position: fixed; top: 0; left: 0; transform: none;
-      width: 100vw; height: 100vh; aspect-ratio: auto;
-      border-radius: 0; padding: 0; box-shadow: none; background: #000;
-    }
-    body.is-fullscreen #screen { border: none; border-radius: 0; }
-    body.is-fullscreen #top-bar { z-index: 60; }
-    /* 全屏时隐藏非全屏专用的控制浮层，避免干扰 */
-    body.is-fullscreen #pos-controls,
-    body.is-fullscreen #controls-zone,
-    body.is-fullscreen #zoom-zone,
-    body.is-fullscreen #position-zone,
-    body.is-fullscreen #zoom-panel,
-    body.is-fullscreen #position-panel { display: none; }
-
-    /* 锁按钮高亮（锁定中） */
-    #gyro-lock-btn.active { background: rgba(77,163,255,0.35); border-color: #4da3ff; }
-  </style>
-</head>
-<body>
+      
       <!-- 打开时引导进入全屏 -->
   <div id="fs-hint" class="hidden">点击任意位置进入全屏观看</div>
 
@@ -692,10 +667,8 @@
         </label>
         <input id="file-input" type="file" accept="video/*" />
         <input id="bg-input" type="file" accept="image/*" />
-        <button id="gyro-lock-btn" class="icon-btn" title="未锁定，跟随手机方向（点击锁定）">🔓</button>
-        <button id="fullscreen-btn" title="进入/退出全屏">全屏</button>
-        <button id="fullscreen-portrait-btn" class="hidden" title="全屏竖屏">竖屏</button>
-        <button id="fullscreen-landscape-btn" class="hidden" title="全屏横屏">横屏</button>
+        <button id="fullscreen-portrait-btn" title="竖屏全屏播放">竖屏</button>
+        <button id="fullscreen-landscape-btn" title="横屏全屏播放">横屏</button>
       </div>
     </div>
   </div>
@@ -734,8 +707,6 @@
     const bgAddTile = document.getElementById('bg-add-tile');
     const fullscreenPortraitBtn = document.getElementById('fullscreen-portrait-btn');
     const fullscreenLandscapeBtn = document.getElementById('fullscreen-landscape-btn');
-    const gyroLockBtn = document.getElementById('gyro-lock-btn');
-    const fullscreenBtn = document.getElementById('fullscreen-btn');
     const speedSelect = document.getElementById('speed');
     const skipEndInput = document.getElementById('skip-end');
     const rewind30Btn = document.getElementById('rewind30-btn');
@@ -846,45 +817,10 @@
     });
 
     
-        // ----- 陀螺仪自动方向 + 锁 + 全屏独立状态 -----
-    // 非全屏：平板自身横/竖布局跟随手机物理方向（不旋转整页）
-    // 锁：锁定后不再跟随陀螺仪
-    // 全屏：独立状态，不受陀螺仪影响，方向由用户竖/横按钮控制
-    let gyroLocked = localStorage.getItem('car_video_gyro_lock') === '1';
-    let gyroState = 'landscape';
-
-    function applyGyroLayout(state) {
-      gyroState = state;
-      if (state === 'portrait') tablet.classList.add('gyro-portrait');
-      else tablet.classList.remove('gyro-portrait');
-    }
-    function updateLockBtn() {
-      gyroLockBtn.textContent = gyroLocked ? '🔒' : '🔓';
-      gyroLockBtn.title = gyroLocked
-        ? '已锁定方向（点击解锁，跟随手机转动）'
-        : '未锁定，跟随手机方向（点击锁定）';
-      gyroLockBtn.classList.toggle('active', gyroLocked);
-    }
-    const orientMQ = window.matchMedia('(orientation: portrait)');
-    function syncOrientation() {
-      if (document.body.classList.contains('is-fullscreen')) return; // 全屏不受陀螺仪影响
-      if (gyroLocked) return;                                        // 已锁定，不跟随
-      applyGyroLayout(orientMQ.matches ? 'portrait' : 'landscape');
-    }
-    if (orientMQ.addEventListener) orientMQ.addEventListener('change', syncOrientation);
-    else if (orientMQ.addListener) orientMQ.addListener(syncOrientation);
-    gyroLockBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      gyroLocked = !gyroLocked;
-      localStorage.setItem('car_video_gyro_lock', gyroLocked ? '1' : '0');
-      updateLockBtn();
-      if (!gyroLocked) syncOrientation();   // 解锁立即同步当前方向
-    });
-    updateLockBtn();
-    applyGyroLayout(orientMQ.matches ? 'portrait' : 'landscape');
-
-    // 全屏：平板占满屏幕，方向由用户控制（竖/横按钮使用 screen.orientation.lock）
-    function goFullscreen() {
+            // ----- 全屏：竖屏 / 横屏 独立 -----
+    // orient: 'portrait' | 'landscape' | 'none'
+    function goFullscreen(orient) {
+      fsHint.classList.add('hidden');
       const el = document.documentElement;
       const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
       if (!req || document.fullscreenElement) return;
@@ -892,8 +828,10 @@
       if (p && p.then) {
         p.then(() => {
           if (screen.orientation && screen.orientation.lock) {
-            const want = gyroState === 'portrait' ? 'portrait' : 'landscape';
-            screen.orientation.lock(want).catch(() => {});
+            // 显式设定方向，避免残留的旧锁串味；'none' 则解除锁定
+            if (orient === 'landscape') screen.orientation.lock('landscape').catch(() => {});
+            else if (orient === 'portrait') screen.orientation.lock('portrait').catch(() => {});
+            else { try { screen.orientation.unlock(); } catch (e) {} }
           }
         }).catch(() => {});
       }
@@ -905,31 +843,21 @@
       const ex = document.exitFullscreen || document.webkitExitFullscreen;
       if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
     }
-    function onFullscreenChange() {
-      const fs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      document.body.classList.toggle('is-fullscreen', fs);
-      fullscreenBtn.textContent = fs ? '退出全屏' : '全屏';
-      // 全屏时显示竖/横切换按钮；退出时隐藏并恢复陀螺仪布局
-      fullscreenPortraitBtn.classList.toggle('hidden', !fs);
-      fullscreenLandscapeBtn.classList.toggle('hidden', !fs);
-      if (!fs) syncOrientation();
-    }
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-
-    fullscreenBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!document.fullscreenElement && !document.webkitFullscreenElement) goFullscreen();
-      else exitFullscreen();
+    fsHint.addEventListener('click', () => goFullscreen('none'));
+    ['click', 'touchstart', 'keydown'].forEach(ev => {
+      document.addEventListener(ev, () => goFullscreen('none'), { once: true, passive: true });
     });
     fullscreenPortraitBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(() => {});
+      if (!document.fullscreenElement) goFullscreen('portrait');
+      else exitFullscreen();
     });
     fullscreenLandscapeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+      if (!document.fullscreenElement) goFullscreen('landscape');
+      else exitFullscreen();
     });
+
 
 
     // ----- 底部导航栏：点击画面出现/隐藏，5秒无操作隐藏 -----
