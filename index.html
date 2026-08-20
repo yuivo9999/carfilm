@@ -66,7 +66,7 @@
       text-overflow: ellipsis;
     }
     
-    /* 顶部时间与文字的上下移动控制：点击角标弹出竖向滑条 */
+        /* 顶部时间与文字的上下移动控制：点击角标弹出竖向滑条 */
     #pos-controls {
       position: fixed;
       top: 8px; left: 0; right: 0;
@@ -76,19 +76,15 @@
       padding: 0 12px;
       pointer-events: none;
     }
-    .pos-widget { position: relative; pointer-events: auto; }
-    .pos-handle {
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      background: rgba(0,0,0,0.5);
-      border: 1px solid rgba(255,255,255,0.45);
-      color: #fff;
-      font-size: 18px; line-height: 1;
+    /* 顶部左右透明热区：点击即弹出对应竖向滑条（无图标，保持画面整洁） */
+    .pos-widget {
+      position: relative;
+      pointer-events: auto;
+      width: 44px; height: 44px;
+      border-radius: 10px;
       cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
-    .pos-handle:active { background: rgba(0,0,0,0.72); }
+    .pos-widget:hover { background: rgba(255,255,255,0.06); }
     /* 竖向滑条：竖屏时最大在顶部，拖动向上=数值变大=元素上移 */
     .pos-widget .vslider {
       position: absolute;
@@ -581,14 +577,12 @@
     <div id="subtitle" contenteditable="true" spellcheck="false">点击编辑文字</div>
   </div>
 
-    <!-- 顶部时间与文字的上下移动控制（左：文字 / 右：时间） -->
+      <!-- 顶部时间与文字的上下移动控制（左：文字 / 右：时间） -->
   <div id="pos-controls">
     <div class="pos-widget" id="pos-subtitle">
-      <button class="pos-handle" title="调整时间下方文字的上下位置">↕</button>
       <input type="range" class="vslider" id="subtitle-pos" min="-120" max="120" step="1" value="0" />
     </div>
     <div class="pos-widget" id="pos-clock">
-      <button class="pos-handle" title="调整顶部时间的上下位置">↕</button>
       <input type="range" class="vslider" id="clock-pos" min="-120" max="120" step="1" value="0" />
     </div>
   </div>
@@ -599,6 +593,7 @@
       <div id="video-time">0:00 / 0:00</div>
     </div>
   </div>
+
 
   <!-- 平板下方：横向粗激活区（点击任意处出现缩放条） -->
   <div id="zoom-zone" title="轻触此处调整画面缩放"></div>
@@ -772,7 +767,7 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
-    // ----- 顶部时间与文字上下移动（点击角标弹出竖向滑条，位置本地保存） -----
+        // ----- 顶部时间与文字上下移动（点击顶部左右热区弹出竖向滑条，位置本地保存） -----
     const CLOCK_BASE = 56;        // 与 CSS --clock-y 默认值一致
     const SUBTITLE_BASE = 92;     // 与 CSS --subtitle-y 默认值一致
     const clockPos = document.getElementById('clock-pos');
@@ -804,13 +799,13 @@
       applySubtitleOffset(v);
       localStorage.setItem('car_video_subtitle_offset', v);
     });
-    // 点击角标展开 / 收起对应滑条，并互斥
+    // 点击顶部左右热区展开 / 收起对应滑条，并互斥
     function toggleWidget(widget, other) {
       widget.classList.toggle('open');
       other.classList.remove('open');
     }
-    posClock.querySelector('.pos-handle').addEventListener('click', () => toggleWidget(posClock, posSubtitle));
-    posSubtitle.querySelector('.pos-handle').addEventListener('click', () => toggleWidget(posSubtitle, posClock));
+    posClock.addEventListener('click', (e) => { e.stopPropagation(); toggleWidget(posClock, posSubtitle); });
+    posSubtitle.addEventListener('click', (e) => { e.stopPropagation(); toggleWidget(posSubtitle, posClock); });
     document.addEventListener('click', (e) => {
       if (!e.target.closest('#pos-controls')) {
         posClock.classList.remove('open');
