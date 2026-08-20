@@ -27,12 +27,16 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 20;
-      padding: 80px 20px 12px;
+      padding: 0 20px;
       text-align: center;
       color: #fff;
       pointer-events: none;
     }
     #clock {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: var(--clock-y, 56px);
       font-size: 20px;
       font-weight: 700;
       line-height: 1.4;
@@ -42,6 +46,10 @@
       font-variant-numeric: tabular-nums;
     }
     #subtitle {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: var(--subtitle-y, 92px);
       margin-top: 1px;
       font-size: 14px;
       font-weight: 400;
@@ -49,7 +57,7 @@
       cursor: pointer;
       display: inline-block;
       outline: none;
-      color: #bfc4c5;
+      color: #a8a8a8;
       -webkit-text-stroke: 2px rgba(0,0,0,0.1);
       min-width: 80px;
       max-width: 80vw;
@@ -57,6 +65,44 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    
+    /* 顶部时间与文字的上下移动控制：点击角标弹出竖向滑条 */
+    #pos-controls {
+      position: fixed;
+      top: 8px; left: 0; right: 0;
+      z-index: 30;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 12px;
+      pointer-events: none;
+    }
+    .pos-widget { position: relative; pointer-events: auto; }
+    .pos-handle {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.45);
+      color: #fff;
+      font-size: 18px; line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .pos-handle:active { background: rgba(0,0,0,0.72); }
+    /* 竖向滑条：竖屏时最大在顶部，拖动向上=数值变大=元素上移 */
+    .pos-widget .vslider {
+      position: absolute;
+      top: 46px; left: 50%;
+      transform: translateX(-50%);
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 10px; height: 150px;
+      accent-color: #4da3ff;
+      cursor: ns-resize;
+      display: none;
+    }
+    .pos-widget.open .vslider { display: block; }
+
 
     /* 中间平板电脑（内阴影边框） */
     #tablet {
@@ -524,14 +570,17 @@
   </style>
 </head>
 <body>
-  <!-- 打开时引导进入全屏 -->
-  <div id="fs-hint">点击任意位置进入全屏观看</div>
-
-  <div id="background"></div>
-
-  <div id="top-bar">
-    <div id="clock">00:00</div>
-    <div id="subtitle" contenteditable="true" spellcheck="false">点击编辑文字</div>
+  
+    <!-- 顶部时间与文字的上下移动控制（左：文字 / 右：时间） -->
+  <div id="pos-controls">
+    <div class="pos-widget" id="pos-subtitle">
+      <button class="pos-handle" title="调整时间下方文字的上下位置">↕</button>
+      <input type="range" class="vslider" id="subtitle-pos" min="-120" max="120" step="1" value="0" />
+    </div>
+    <div class="pos-widget" id="pos-clock">
+      <button class="pos-handle" title="调整顶部时间的上下位置">↕</button>
+      <input type="range" class="vslider" id="clock-pos" min="-120" max="120" step="1" value="0" />
+    </div>
   </div>
 
   <div id="tablet">
@@ -713,6 +762,53 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
+    // ----- 顶部时间与文字上下移动（点击角标弹出竖向滑条，位置本地保存） -----
+    const CLOCK_BASE = 56;        // 与 CSS --clock-y 默认值一致
+    const SUBTITLE_BASE = 92;     // 与 CSS --subtitle-y 默认值一致
+    const clockPos = document.getElementById('clock-pos');
+    const subtitlePos = document.getElementById('subtitle-pos');
+    const posClock = document.getElementById('pos-clock');
+    const posSubtitle = document.getElementById('pos-subtitle');
+
+    function applyClockOffset(v) {
+      clockEl.style.setProperty('--clock-y', (CLOCK_BASE - v) + 'px');
+    }
+    function applySubtitleOffset(v) {
+      subtitleEl.style.setProperty('--subtitle-y', (SUBTITLE_BASE - v) + 'px');
+    }
+    // 读回保存的偏移（0 = 默认位置）
+    const savedClock = parseInt(localStorage.getItem('car_video_clock_offset'), 10);
+    const savedSub = parseInt(localStorage.getItem('car_video_subtitle_offset'), 10);
+    const clockOff = isNaN(savedClock) ? 0 : savedClock;
+    const subOff = isNaN(savedSub) ? 0 : savedSub;
+    clockPos.value = clockOff; applyClockOffset(clockOff);
+    subtitlePos.value = subOff; applySubtitleOffset(subOff);
+
+    clockPos.addEventListener('input', () => {
+      const v = parseInt(clockPos.value, 10);
+      applyClockOffset(v);
+      localStorage.setItem('car_video_clock_offset', v);
+    });
+    subtitlePos.addEventListener('input', () => {
+      const v = parseInt(subtitlePos.value, 10);
+      applySubtitleOffset(v);
+      localStorage.setItem('car_video_subtitle_offset', v);
+    });
+    // 点击角标展开 / 收起对应滑条，并互斥
+    function toggleWidget(widget, other) {
+      widget.classList.toggle('open');
+      other.classList.remove('open');
+    }
+    posClock.querySelector('.pos-handle').addEventListener('click', () => toggleWidget(posClock, posSubtitle));
+    posSubtitle.querySelector('.pos-handle').addEventListener('click', () => toggleWidget(posSubtitle, posClock));
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#pos-controls')) {
+        posClock.classList.remove('open');
+        posSubtitle.classList.remove('open');
+      }
+    });
+
+    
     // ----- 全屏：竖屏 / 横屏 独立 -----
     // orient: 'portrait' | 'landscape' | 'none'
     function goFullscreen(orient) {
