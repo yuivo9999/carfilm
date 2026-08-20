@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>本地背景图视频播放器</title>
+  <title>车载本地视频播放器</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -38,7 +38,7 @@
       line-height: 1.4;
       pointer-events: auto;
       color: #ffffff;
-      -webkit-text-stroke: 0.1px rgba(0,0,0,0.6);
+      -webkit-text-stroke: 2px rgba(0,0,0,0.1);
       font-variant-numeric: tabular-nums;
     }
     #subtitle {
@@ -50,7 +50,7 @@
       display: inline-block;
       outline: none;
       color: #bfc4c5;
-      -webkit-text-stroke: 0.1px rgba(0,0,0,0.6);
+      -webkit-text-stroke: 2px rgba(0,0,0,0.1);
       min-width: 80px;
       max-width: 80vw;
       white-space: nowrap;
@@ -779,7 +779,7 @@
     // ----- 全屏 / 横竖 切换 -----
     let isLandscape = false;  // 当前是否为横屏观看模式
 
-    // 启动时恢复上次横竖偏好（非全屏下用 CSS 旋转）
+    // 启动时恢复上次横竖偏好
     if (localStorage.getItem('car_video_landscape') === '1') {
       isLandscape = true;
       document.body.classList.add('landscape');
@@ -790,14 +790,10 @@
       const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
       if (!req || document.fullscreenElement) return;
       const p = req.call(el);
-      const done = () => { updateFullscreenBtn(); applyOrientation(); };
-      if (p && p.then) p.then(done).catch(() => {});
-      else done();
+      if (p && p.then) p.then(updateFullscreenBtn).catch(() => {});
+      else updateFullscreenBtn();
     }
     function exitFullscreen() {
-      if (screen.orientation && screen.orientation.unlock) {
-        try { screen.orientation.unlock(); } catch (e) {}
-      }
       const ex = document.exitFullscreen || document.webkitExitFullscreen;
       if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
     }
@@ -807,41 +803,24 @@
     function updateOrientationBtn() {
       orientationToggleBtn.textContent = isLandscape ? '横屏' : '竖屏';
     }
-    // 应用横竖方向：全屏下用系统方向锁（避免 CSS 旋转与系统自动旋转冲突导致倒立）；
-    // 非全屏下用 CSS 旋转整个界面（保持不进全屏也能横屏观看）
-    function applyOrientation() {
-      if (document.fullscreenElement) {
-        document.body.classList.remove('landscape');  // 全屏交给系统方向锁，不用 CSS 旋转
-        if (screen.orientation && screen.orientation.lock) {
-          const orient = isLandscape ? 'landscape' : 'portrait';
-          screen.orientation.lock(orient).catch(() => {});
-        }
-      } else {
-        document.body.classList.toggle('landscape', isLandscape);
-      }
-    }
-
-    // 「全屏」按钮：进入 / 退出 全屏
+    // 「全屏」按钮：进入 / 退出 全屏（方向跟随设备，与横竖旋转互不干扰）
     fullscreenToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (document.fullscreenElement) exitFullscreen();
       else enterFullscreen();
     });
 
-    // 「横竖」按钮：切换横屏 / 竖屏（全屏用方向锁，非全屏用 CSS 旋转）
+    // 「横竖」按钮：CSS 旋转整个界面，随时切换横屏 / 竖屏 观看（不依赖全屏）
     orientationToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       isLandscape = !isLandscape;
+      document.body.classList.toggle('landscape', isLandscape);
       localStorage.setItem('car_video_landscape', isLandscape ? '1' : '0');
       updateOrientationBtn();
-      applyOrientation();
     });
 
-    // 进入 / 退出全屏时同步按钮文字与方向
-    document.addEventListener('fullscreenchange', () => {
-      updateFullscreenBtn();
-      applyOrientation();
-    });
+    // 退出全屏（系统返回 / ESC）时同步按钮文字
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
 
     updateFullscreenBtn();
     updateOrientationBtn();
