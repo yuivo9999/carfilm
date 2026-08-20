@@ -58,6 +58,55 @@
       text-overflow: ellipsis;
     }
 
+    /* 顶部左右透明热区 */
+#pos-controls {
+  position: fixed;
+  top: 28px; left: 0; right: 0;
+  z-index: 25;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+.pos-widget {
+  pointer-events: auto;
+  width: 48px; height: 120px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.pos-widget:hover { background: rgba(255,255,255,0.08); }
+
+/* 竖向滑条（默认隐藏） */
+.pos-widget .vslider {
+  display: none;
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 120px;
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  accent-color: #fff;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pos-widget.open .vslider {
+  display: block;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  #pos-controls { top: 18px; padding: 0 6px; }
+  .pos-widget { width: 40px; height: 40px; }
+  .pos-widget .vslider { height: 90px; top: 44px; }
+}
+
     /* 中间平板电脑（内阴影边框） */
     #tablet {
       position: fixed;
@@ -541,6 +590,16 @@
     </div>
   </div>
 
+  <!-- 顶部位置控制（左：文字 / 右：时间） -->
+<div id="pos-controls">
+  <div class="pos-widget" id="pos-subtitle">
+    <input type="range" class="vslider" id="subtitle-pos" min="-120" max="120" value="0" step="1" />
+  </div>
+  <div class="pos-widget" id="pos-clock">
+    <input type="range" class="vslider" id="clock-pos" min="-120" max="120" value="0" step="1" />
+  </div>
+</div>
+
   <!-- 平板下方：横向粗激活区（点击任意处出现缩放条） -->
   <div id="zoom-zone" title="轻触此处调整画面缩放"></div>
 
@@ -713,6 +772,67 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
+// ----- 顶部文字/时间 位置控制（竖向滑条） -----
+const posClock = document.getElementById('pos-clock');
+const posSubtitle = document.getElementById('pos-subtitle');
+const clockPosSlider = document.getElementById('clock-pos');
+const subtitlePosSlider = document.getElementById('subtitle-pos');
+const clockEl = document.getElementById('clock');
+const subtitleEl = document.getElementById('subtitle');
+
+// 恢复保存的位置
+const savedClockTop = localStorage.getItem('car_video_clock_top');
+if (savedClockTop !== null) {
+  clockEl.style.transform = `translateY(${savedClockTop}px)`;
+  clockPosSlider.value = savedClockTop;
+}
+const savedSubtitleTop = localStorage.getItem('car_video_subtitle_top');
+if (savedSubtitleTop !== null) {
+  subtitleEl.style.transform = `translateY(${savedSubtitleTop}px)`;
+  subtitlePosSlider.value = savedSubtitleTop;
+}
+
+// 点击热区展开/收起滑条（互斥）
+function toggleWidget(widget, other) {
+  const isOpen = widget.classList.contains('open');
+  // 先关闭所有
+  posClock.classList.remove('open');
+  posSubtitle.classList.remove('open');
+  // 如果点击的之前是关闭状态，则打开它
+  if (!isOpen) widget.classList.add('open');
+}
+
+posClock.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleWidget(posClock, posSubtitle);
+});
+
+posSubtitle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleWidget(posSubtitle, posClock);
+});
+
+// 滑条拖动：实时移动对应元素
+clockPosSlider.addEventListener('input', () => {
+  const val = clockPosSlider.value;
+  clockEl.style.transform = `translateY(${val}px)`;
+  localStorage.setItem('car_video_clock_top', val);
+});
+
+subtitlePosSlider.addEventListener('input', () => {
+  const val = subtitlePosSlider.value;
+  subtitleEl.style.transform = `translateY(${val}px)`;
+  localStorage.setItem('car_video_subtitle_top', val);
+});
+
+// 点击页面空白处收起滑条
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#pos-controls')) {
+    posClock.classList.remove('open');
+    posSubtitle.classList.remove('open');
+  }
+});
+    
     // ----- 全屏：竖屏 / 横屏 独立 -----
     // orient: 'portrait' | 'landscape' | 'none'
     function goFullscreen(orient) {
