@@ -229,6 +229,60 @@
     }
     #position-reset:active { background: rgba(255,255,255,0.24); }
 
+    /* 顶部两侧：控制「下方文字」「顶部时间」升降的触发区与面板 */
+    .top-slider-zone {
+      position: fixed;
+      z-index: 15;
+      top: 0;
+      width: 70px; height: 200px;
+      cursor: pointer;
+    }
+    #subtitle-zone { left: 0; }
+    #clock-zone { right: 0; }
+
+    .top-slider-panel {
+      position: fixed;
+      z-index: 26;
+      top: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 12px;
+      backdrop-filter: blur(6px);
+      opacity: 1;
+      transition: opacity 0.3s;
+      user-select: none;
+    }
+    .top-slider-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #subtitle-panel { left: 14px; }
+    #clock-panel { right: 14px; }
+    .top-slider-panel input[type="range"] {
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      width: 8px; height: 140px;
+      cursor: pointer;
+      accent-color: #fff;
+    }
+    .top-slider-reset {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #fff;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .top-slider-reset:active { background: rgba(255,255,255,0.24); }
+
     /* 底部中间：呼出导航栏触发区 */
     #controls-zone {
       position: fixed;
@@ -483,22 +537,17 @@
       background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.5); cursor: default;
     }
     
-    /* 打开时的全屏引导浮层 */
-    #fs-hint {
+
+    /* 横屏观看模式：CSS 旋转整个界面（独立于全屏，安卓随时可用） */
+    body.landscape {
       position: fixed;
-      inset: 0;
-      z-index: 50;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.55);
-      color: #fff;
-      font-size: 18px;
-      cursor: pointer;
-      text-align: center;
-      backdrop-filter: blur(2px);
+      top: 0; left: 0;
+      width: 100vh;
+      height: 100vw;
+      transform: translateX(100vw) rotate(90deg);
+      transform-origin: top left;
+      overflow: hidden;
     }
-    #fs-hint.hidden { display: none; }
 
     /* 响应式 */
     @media (max-width: 640px) {
@@ -524,9 +573,6 @@
   </style>
 </head>
 <body>
-  <!-- 打开时引导进入全屏 -->
-  <div id="fs-hint">点击任意位置进入全屏观看</div>
-
   <div id="background"></div>
 
   <div id="top-bar">
@@ -562,8 +608,26 @@
     <button id="position-reset">恢复默认</button>
   </div>
 
-  <!-- 底部中间：呼出导航栏触发区 -->
-  <div id="controls-zone" title="轻触此处呼出控制栏"></div>
+    <!-- 顶部左侧：控制「下方文字」升降 -->
+    <div id="subtitle-zone" class="top-slider-zone" title="轻触此处调整下方文字位置"></div>
+    <div id="subtitle-panel" class="top-slider-panel hidden">
+      <span>上</span>
+      <input id="subtitle-slider" type="range" min="-100" max="100" value="0" orient="vertical" />
+      <span>下</span>
+      <button id="subtitle-reset" class="top-slider-reset">恢复默认</button>
+    </div>
+
+    <!-- 顶部右侧：控制「顶部时间」升降 -->
+    <div id="clock-zone" class="top-slider-zone" title="轻触此处调整顶部时间位置"></div>
+    <div id="clock-panel" class="top-slider-panel hidden">
+      <span>上</span>
+      <input id="clock-slider" type="range" min="-100" max="100" value="0" orient="vertical" />
+      <span>下</span>
+      <button id="clock-reset" class="top-slider-reset">恢复默认</button>
+    </div>
+
+    <!-- 底部中间：呼出导航栏触发区 -->
+    <div id="controls-zone" title="轻触此处呼出控制栏"></div>
 
   <!-- 底部控制栏 -->
   <div id="controls" class="hidden">
@@ -609,8 +673,8 @@
         </label>
         <input id="file-input" type="file" accept="video/*" />
         <input id="bg-input" type="file" accept="image/*" />
-        <button id="fullscreen-portrait-btn" title="竖屏全屏播放">竖屏</button>
-        <button id="fullscreen-landscape-btn" title="横屏全屏播放">横屏</button>
+        <button id="fullscreen-toggle-btn" title="进入 / 退出全屏">全屏</button>
+        <button id="orientation-toggle-btn" title="切换横屏 / 竖屏观看">竖屏</button>
       </div>
     </div>
   </div>
@@ -647,8 +711,8 @@
     const bgLibClose = document.getElementById('bg-library-close');
     const bgConfirmBtn = document.getElementById('bg-confirm-btn');
     const bgAddTile = document.getElementById('bg-add-tile');
-    const fullscreenPortraitBtn = document.getElementById('fullscreen-portrait-btn');
-    const fullscreenLandscapeBtn = document.getElementById('fullscreen-landscape-btn');
+    const fullscreenToggleBtn = document.getElementById('fullscreen-toggle-btn');
+    const orientationToggleBtn = document.getElementById('orientation-toggle-btn');
     const speedSelect = document.getElementById('speed');
     const skipEndInput = document.getElementById('skip-end');
     const rewind30Btn = document.getElementById('rewind30-btn');
@@ -672,7 +736,6 @@
     const positionReset = document.getElementById('position-reset');
     const controlsZone = document.getElementById('controls-zone');
     const normalizeBtn = document.getElementById('normalize-btn');
-    const fsHint = document.getElementById('fs-hint');
 
     // 图标
     const iconPlay = '<path d="M8 5v14l11-7z"/>';
@@ -713,46 +776,55 @@
     const saved = localStorage.getItem('car_video_subtitle');
     if (saved) subtitleEl.textContent = saved;
 
-    // ----- 全屏：竖屏 / 横屏 独立 -----
-    // orient: 'portrait' | 'landscape' | 'none'
-    function goFullscreen(orient) {
-      fsHint.classList.add('hidden');
+    // ----- 全屏 / 横竖 切换 -----
+    let isLandscape = false;  // 当前是否为横屏观看模式（CSS 旋转实现，独立于全屏）
+
+    // 启动时恢复上次横竖偏好
+    if (localStorage.getItem('car_video_landscape') === '1') {
+      isLandscape = true;
+      document.body.classList.add('landscape');
+    }
+
+    function enterFullscreen() {
       const el = document.documentElement;
       const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
       if (!req || document.fullscreenElement) return;
       const p = req.call(el);
-      if (p && p.then) {
-        p.then(() => {
-          if (screen.orientation && screen.orientation.lock) {
-            // 显式设定方向，避免残留的旧锁串味；'none' 则解除锁定
-            if (orient === 'landscape') screen.orientation.lock('landscape').catch(() => {});
-            else if (orient === 'portrait') screen.orientation.lock('portrait').catch(() => {});
-            else { try { screen.orientation.unlock(); } catch (e) {} }
-          }
-        }).catch(() => {});
-      }
+      if (p && p.then) p.then(updateFullscreenBtn).catch(() => {});
+      else updateFullscreenBtn();
     }
     function exitFullscreen() {
-      if (screen.orientation && screen.orientation.unlock) {
-        try { screen.orientation.unlock(); } catch (e) {}
-      }
       const ex = document.exitFullscreen || document.webkitExitFullscreen;
       if (ex && document.fullscreenElement) ex.call(document).catch(() => {});
     }
-    fsHint.addEventListener('click', () => goFullscreen('none'));
-    ['click', 'touchstart', 'keydown'].forEach(ev => {
-      document.addEventListener(ev, () => goFullscreen('none'), { once: true, passive: true });
-    });
-    fullscreenPortraitBtn.addEventListener('click', (e) => {
+    function updateFullscreenBtn() {
+      fullscreenToggleBtn.textContent = document.fullscreenElement ? '退出' : '全屏';
+    }
+    function updateOrientationBtn() {
+      orientationToggleBtn.textContent = isLandscape ? '横屏' : '竖屏';
+    }
+
+    // 「全屏」按钮：进入 / 退出 全屏（方向跟随设备，与横竖旋转互不干扰）
+    fullscreenToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) goFullscreen('portrait');
-      else exitFullscreen();
+      if (document.fullscreenElement) exitFullscreen();
+      else enterFullscreen();
     });
-    fullscreenLandscapeBtn.addEventListener('click', (e) => {
+
+    // 「横竖」按钮：CSS 旋转整个界面，随时切换横屏 / 竖屏 观看（不依赖全屏）
+    orientationToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) goFullscreen('landscape');
-      else exitFullscreen();
+      isLandscape = !isLandscape;
+      document.body.classList.toggle('landscape', isLandscape);
+      localStorage.setItem('car_video_landscape', isLandscape ? '1' : '0');
+      updateOrientationBtn();
     });
+
+    // 退出全屏（系统返回 / ESC）时同步按钮文字
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
+
+    updateFullscreenBtn();
+    updateOrientationBtn();
 
     // ----- 底部导航栏：点击画面出现/隐藏，5秒无操作隐藏 -----
     let controlsHideTimer = null;
@@ -842,6 +914,48 @@
       positionSlider.value = offset;
       applyTabletTop(offset);
     }
+
+    // ----- 顶部两侧：竖向滑条控制「下方文字」「顶部时间」升降 -----
+    function setupTopSlider(cfg) {
+      let hideTimer = null;
+      function showPanel() {
+        cfg.panel.classList.remove('hidden');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => cfg.panel.classList.add('hidden'), 3000);
+      }
+      function applyOffset(offset) {
+        // 滑条「上」(max) = 元素上移 => translateY 取负
+        cfg.target.style.transform = `translateY(${-offset}px)`;
+        localStorage.setItem(cfg.storageKey, offset);
+      }
+      cfg.zone.addEventListener('click', (e) => { e.stopPropagation(); showPanel(); });
+      cfg.panel.addEventListener('click', (e) => e.stopPropagation());
+      cfg.slider.addEventListener('input', () => { applyOffset(parseFloat(cfg.slider.value)); showPanel(); });
+      cfg.reset.addEventListener('click', (e) => {
+        e.stopPropagation(); cfg.slider.value = 0; applyOffset(0); showPanel();
+      });
+      const saved = parseFloat(localStorage.getItem(cfg.storageKey));
+      if (!isNaN(saved)) {
+        const v = Math.max(-100, Math.min(100, saved));
+        cfg.slider.value = v; applyOffset(v);
+      }
+    }
+    setupTopSlider({
+      zone: document.getElementById('subtitle-zone'),
+      panel: document.getElementById('subtitle-panel'),
+      slider: document.getElementById('subtitle-slider'),
+      reset: document.getElementById('subtitle-reset'),
+      target: subtitleEl,
+      storageKey: 'car_video_subtitle_top'
+    });
+    setupTopSlider({
+      zone: document.getElementById('clock-zone'),
+      panel: document.getElementById('clock-panel'),
+      slider: document.getElementById('clock-slider'),
+      reset: document.getElementById('clock-reset'),
+      target: clockEl,
+      storageKey: 'car_video_clock_top'
+    });
 
     // 底部中间区域点击呼出导航栏
     controlsZone.addEventListener('click', (e) => {
@@ -1198,7 +1312,7 @@
       } else if (e.code === 'ArrowLeft') {
         video.currentTime = Math.max(0, video.currentTime - 5);
       } else if (e.code === 'KeyF') {
-        fullscreenPortraitBtn.click();
+        fullscreenToggleBtn.click();
       }
     });
 
